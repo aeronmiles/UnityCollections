@@ -2,6 +2,17 @@ using UnityEngine;
 
 public static class QuaternionExt
 {
+    public static Quaternion[] Randomize(this Quaternion[] vs, int seed)
+    {
+        Random.InitState(seed);
+        int l = vs.Length;
+        for (int i = 0; i < l; i++)
+        {
+            vs[i] = Random.rotation;
+        }
+        return vs;
+    }
+
     public static Quaternion Average(this Quaternion[] qArray)
     {
         if (qArray.Length == 0)
@@ -17,4 +28,22 @@ public static class QuaternionExt
         }
         return qAvg;
     }
+
+    public static Quaternion[] MultiplyEuler(this Quaternion[] vs, Vector3 v)
+    {
+        int l = vs.Length;
+        for (int i = 0; i < l; i++)
+        {
+            var vx = vs[i].eulerAngles;
+            vs[i] = Quaternion.Euler(vx.x * v.x, vx.y * v.y, vx.z * v.z);
+        }
+        return vs;
+    }
+
+    public static Quaternion Multiply(this Quaternion vs, Vector3 v)
+    {
+        var vx = vs.eulerAngles;
+        return Quaternion.Euler(vx.x * v.x, vx.y * v.y, vx.z * v.z);
+    }
+
 }

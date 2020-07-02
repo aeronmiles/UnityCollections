@@ -4,6 +4,17 @@ using UnityEngine;
 
 public static class TransformExt
 {
+    public static Transform[] SetPositionAndRotation(this Transform[] ts, Vector3[] ps, Quaternion[] rs)
+    {
+        int l = ts.Length;
+        for (int i = 0; i < l; i++)
+        {
+            ts[i].position = ps[i];
+            ts[i].rotation = rs[i];
+        }
+        return ts;
+    }
+
     public static Transform[] Children(this Transform transform)
     {
         var childs = transform.GetComponentsInChildren<Transform>(true);
@@ -15,7 +26,7 @@ public static class TransformExt
             if (childs[i].parent == transform)
             {
                 Array.Resize(ref objs, x++);
-                objs[x-1] = childs[i];
+                objs[x - 1] = childs[i];
             }
         }
         return objs;
@@ -40,7 +51,7 @@ public static class TransformExt
         }
         return objs;
     }
-    
+
     public static Vector3[] Positions(this Transform[] ts)
     {
         int l = ts.Length;

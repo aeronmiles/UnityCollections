@@ -1,15 +1,27 @@
 using System.Collections.Generic;
 using UnityEngine;
+using Unity.Mathematics;
 
 public static class Vector3Ext
 {
+    public static Vector3[] Randomize(this Vector3[] vs, int seed)
+    {
+        var r = new Unity.Mathematics.Random((uint)seed);
+        int l = vs.Length;
+        for (int i = 0; i < l; i++)
+        {
+            vs[i] = new Vector3(r.NextFloat() * 2f - 1f, r.NextFloat() * 2f - 1f, r.NextFloat() * 2f - 1f);
+        }
+        return vs;
+    }
+
     public static Vector3 XYZ(this Vector3 v, float value)
     {
         v.x = v.y = v.z = value;
         return v;
     }
 
-    public static Vector3 Random(this Vector3 v, float min, float max)
+    public static Vector3 Random(this Vector3 v, float min = -1f, float max = 1f)
     {
         return new Vector3(UnityEngine.Random.Range(min, max), UnityEngine.Random.Range(min, max), UnityEngine.Random.Range(min, max));
     }
@@ -91,7 +103,7 @@ public static class Vector3Ext
     {
         for (int i = 0; i < vsLength; i++)
         {
-            float di = (vs[i]-v).magnitude;
+            float di = (vs[i] - v).magnitude;
             if (di < maxVal)
             {
                 vOut = vs[i];
@@ -133,7 +145,7 @@ public static class Vector3Ext
         {
             averagePos += vArray[i];
         }
-        
+
         return averagePos / vArray.Length;
     }
 
@@ -142,7 +154,18 @@ public static class Vector3Ext
         return new Vector3(v.x * vx.x, v.y * vx.y, v.z * vx.z);
     }
 
-    public static Vector3 Round(this Vector3 v, int decimals=0)
+    public static Vector3[] Multiply(this Vector3[] vs, Vector3 v)
+    {
+        int l = vs.Length;
+        for (int i = 0; i < l; i++)
+        {
+            var vx = vs[i];
+            vs[i] = new Vector3(vx.x * v.x, vx.y * v.y, vx.z * v.z);
+        }
+        return vs;
+    }
+
+    public static Vector3 Round(this Vector3 v, int decimals = 0)
     {
         return new Vector3(v.x.Round(decimals), v.y.Round(decimals), v.z.Round(decimals));
     }

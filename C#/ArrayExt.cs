@@ -49,17 +49,17 @@ public static class ArrayExt
         int l = items.Length;
         for (int i = 0; i < l; i++)
         {
-            action(items[i]);  
+            action(items[i]);
         }
         return items;
     }
-    
+
     public static List<T> ForEach<T>(this List<T> items, ref Action<T> action)
     {
         int l = items.Count;
         for (int i = 0; i < l; i++)
         {
-            action(items[i]);  
+            action(items[i]);
         }
         return items;
     }
