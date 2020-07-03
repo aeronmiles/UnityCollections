@@ -1,14 +1,36 @@
 using UnityEngine;
+using Unity.Mathematics;
 
 public static class QuaternionExt
 {
     public static Quaternion[] Randomize(this Quaternion[] vs, int seed)
     {
-        Random.InitState(seed);
+        UnityEngine.Random.InitState(seed);
         int l = vs.Length;
         for (int i = 0; i < l; i++)
         {
-            vs[i] = Random.rotation;
+            vs[i] = UnityEngine.Random.rotation;
+        }
+        return vs;
+    }
+
+    public static Quaternion[] RandomAngleStep(this Quaternion[] vs, int seed, Vector3 angleStep)
+    {
+        int l = vs.Length;
+        float3 div = new float3(360f);
+        div.x /= angleStep.x;
+        div.y /= angleStep.y;
+        div.z /= angleStep.z;
+
+        var r = new Unity.Mathematics.Random((uint)seed);
+
+        for (int i = 0; i < l; i++)
+        {
+            var x = (int)(r.NextFloat() * div.x) * angleStep.x;
+            var y = (int)(r.NextFloat() * div.y) * angleStep.y;
+            var z = (int)(r.NextFloat() * div.z) * angleStep.z;
+
+            vs[i] = Quaternion.Euler(x, y, z);
         }
         return vs;
     }
