@@ -14,25 +14,15 @@ public static class QuaternionExt
         return vs;
     }
 
-    public static Quaternion[] RandomAngleStep(this Quaternion[] vs, int seed, Vector3 angleStep)
+    public static Vector3[] Euler(this Quaternion[] qs)
     {
-        int l = vs.Length;
-        float3 div = new float3(360f);
-        div.x /= angleStep.x;
-        div.y /= angleStep.y;
-        div.z /= angleStep.z;
-
-        var r = new Unity.Mathematics.Random((uint)seed);
-
+        int l = qs.Length;
+        Vector3[] es = new Vector3[l];
         for (int i = 0; i < l; i++)
         {
-            var x = (int)(r.NextFloat() * div.x) * angleStep.x;
-            var y = (int)(r.NextFloat() * div.y) * angleStep.y;
-            var z = (int)(r.NextFloat() * div.z) * angleStep.z;
-
-            vs[i] = Quaternion.Euler(x, y, z);
+            es[i] = qs[i].eulerAngles;
         }
-        return vs;
+        return es;
     }
 
     public static Quaternion Average(this Quaternion[] qArray)
