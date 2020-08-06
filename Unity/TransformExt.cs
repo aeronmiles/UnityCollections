@@ -52,6 +52,25 @@ public static class TransformExt
         return objs;
     }
 
+    public static Transform Closest(this Transform[] ts, Vector3 pos)
+    {
+        int l = ts.Length;
+        
+        Transform closest = null;
+        float d = float.MaxValue;
+        for (int i = 0; i < l; i++)
+        {
+            float di = Vector3.Distance(pos, ts[i].position);
+            if (di < d) 
+            {
+                closest = ts[i];
+                d = di;
+            }
+        }
+
+        return closest;
+    }
+
     public static Vector3[] Positions(this Transform[] ts)
     {
         int l = ts.Length;
