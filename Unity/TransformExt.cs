@@ -25,8 +25,8 @@ public static class TransformExt
         {
             if (childs[i].parent == transform)
             {
-                Array.Resize(ref objs, x++);
-                objs[x - 1] = childs[i];
+                Array.Resize(ref objs, x + 1);
+                objs[x++] = childs[i];
             }
         }
         return objs;
@@ -55,13 +55,13 @@ public static class TransformExt
     public static Transform Closest(this Transform[] ts, Vector3 pos)
     {
         int l = ts.Length;
-        
+
         Transform closest = null;
         float d = float.MaxValue;
         for (int i = 0; i < l; i++)
         {
             float di = Vector3.Distance(pos, ts[i].position);
-            if (di < d) 
+            if (di < d)
             {
                 closest = ts[i];
                 d = di;
@@ -70,6 +70,26 @@ public static class TransformExt
 
         return closest;
     }
+
+    public static Transform Closest(this List<Transform> ts, Vector3 pos)
+    {
+        int l = ts.Count;
+
+        Transform closest = null;
+        float d = float.MaxValue;
+        for (int i = 0; i < l; i++)
+        {
+            float di = Vector3.Distance(pos, ts[i].position);
+            if (di < d)
+            {
+                closest = ts[i];
+                d = di;
+            }
+        }
+
+        return closest;
+    }
+
 
     public static Vector3[] Positions(this Transform[] ts)
     {
