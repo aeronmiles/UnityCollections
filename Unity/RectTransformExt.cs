@@ -1,4 +1,5 @@
 ﻿
+using Unity.Mathematics;
 using UnityEngine;
 
 public static class RectTransformExt
@@ -39,5 +40,11 @@ public static class RectTransformExt
         }
 
         return closest;
+    }
+
+    public static Vector3 PositionDelta(this RectTransform rect, float2 pos)
+    {
+        pos = pos - new float2(0.5f, 0.5f);
+        return new Vector3(rect.sizeDelta.x * pos.x, rect.sizeDelta.y * pos.y);
     }
 }

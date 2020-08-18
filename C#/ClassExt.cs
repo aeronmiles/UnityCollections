@@ -3,7 +3,7 @@ using System.Runtime.Serialization.Formatters.Binary;
 
 public static class ClassExt
 {
-    public static T DeepCopy<T>(T other)
+    public static T DeepCopy<T>(this T other)
     {
         using (MemoryStream ms = new MemoryStream())
         {
