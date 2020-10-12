@@ -2,14 +2,6 @@
 
 public static class GenericExt
 {
-    /// <summary>
-    /// Maps the source object to target object.
-    /// </summary>
-    /// <typeparam name="T">Type of target object.</typeparam>
-    /// <typeparam name="TU">Type of source object.</typeparam>
-    /// <param name="target">Target object.</param>
-    /// <param name="source">Source object.</param>
-    /// <returns>Updated target object.</returns>
     public static T Map<T, TU>(this T target, TU source)
     {
         // get property list of the target object.
