@@ -1,2 +1,2 @@
 # Unity Extensions
-Unity and C# types and extension methods
+Unity and C# types and extensions
