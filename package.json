@@ -1,7 +1,7 @@
 {
-  "name": "com.am.unity.extensions",
+  "name": "com.am.unity.collections",
   "version": "1.0.1",
-  "displayName": "Unity Extensions",
+  "displayName": "Unity Collections",
   "description": "Unity and C# type extension methods",
   "unity": "2019.1",
   "dependencies": {
