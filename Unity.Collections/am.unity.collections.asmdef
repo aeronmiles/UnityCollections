@@ -1,5 +1,5 @@
 {
-    "name": "am.unity.extensions",
+    "name": "AM.Unity.Collections",
     "references": [
         "Unity.Mathematics"
     ],
