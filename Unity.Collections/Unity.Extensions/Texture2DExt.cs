@@ -1,8 +1,9 @@
 ﻿using UnityEngine;
+using System.IO;
 
 public static class Texture2DExt
 {
-    public static Texture2D LoadTexture(this Texture2D tex, string FilePath)
+    public static Texture2D LoadTextureFromPath(this Texture2D tex, string FilePath)
     {
         // Load a PNG or JPG file from disk to a Texture2D
         // Returns null if load fails
