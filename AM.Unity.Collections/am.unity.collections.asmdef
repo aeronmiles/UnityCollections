@@ -1,5 +1,6 @@
 {
     "name": "AM.Unity.Collections",
+    "rootNamespace": "",
     "references": [
         "Unity.Mathematics"
     ],

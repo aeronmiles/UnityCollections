@@ -1,5 +1,6 @@
 {
     "name": "AM.Unity.Collections.Editor",
+    "rootNamespace": "",
     "references": [],
     "includePlatforms": [],
     "excludePlatforms": [],
