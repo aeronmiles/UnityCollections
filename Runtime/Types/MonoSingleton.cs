@@ -2,22 +2,22 @@ using UnityEngine;
 
 public class MonoSingleton<T> : MonoBehaviour where T : Component
 {
-    private static T _instance = null;
+    private static T s_instance = null;
     public static T I
     {
         get
         {
-            if (_instance != null) return _instance;
-            _instance = new GameObject(typeof(T).Name).AddComponent<T>();
-            return _instance;
+            if (s_instance != null) return s_instance;
+            s_instance = new GameObject(typeof(T).Name).AddComponent<T>();
+            return s_instance;
         }
     }
 
     public virtual void Awake()
     {
-        if (_instance == null)
+        if (s_instance == null)
         {
-            _instance = this as T;
+            s_instance = this as T;
             DontDestroyOnLoad(this);
             AfterAwake();
         }
