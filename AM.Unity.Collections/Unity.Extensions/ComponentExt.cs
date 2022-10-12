@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Reflection;
 using UnityEngine;
 
@@ -13,7 +14,7 @@ public static class ComponentExt
         int l = pinfos.Length;
         for (int i = 0; i < l; i++)
         {
-             if (pinfos[i].CanWrite)
+            if (pinfos[i].CanWrite)
             {
                 try
                 {
@@ -29,5 +30,11 @@ public static class ComponentExt
             finfos[i].SetValue(comp, finfos[i].GetValue(other));
         }
         return comp as T;
+    }
+
+    public static IEnumerable<T> SetActive<T>(this IEnumerable<T> objs, bool active) where T : Component
+    {
+        foreach (var obj in objs) obj.gameObject.SetActive(active);
+        return objs;
     }
 }

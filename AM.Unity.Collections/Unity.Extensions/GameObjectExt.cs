@@ -95,6 +95,30 @@ public static class GameObjectExt
         return objs;
     }
 
+    public static bool AllActive(this GameObject[] gos)
+    {
+        if (gos.Length == 0) return true;
+
+        foreach (var go in gos)
+        {
+            if (go != null && !go.activeSelf) return false;
+        }
+
+        return true;
+    }
+
+    public static bool NoneActive(this GameObject[] gos)
+    {
+        if (gos.Length == 0) return true;
+
+        foreach (var go in gos)
+        {
+            if (go != null && go.activeSelf) return false;
+        }
+
+        return true;
+    }
+
     public static List<GameObject> SetActive(this List<GameObject> gos, bool active)
     {
         int l = gos.Count;

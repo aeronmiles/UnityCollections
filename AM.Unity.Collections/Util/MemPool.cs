@@ -50,7 +50,11 @@ public static class MemPool
         {
             if (type.IsSubclassOf(typeof(MonoBehaviour)))
             {
+<<<<<<< HEAD
+                Debug.LogError("MemPool -> Get<T>() :: Pool doesn't support instantiating MonoBehaviour types");
+=======
                 Debug.LogError("Pool -> Get<T>() :: Pool doesn't support instantiating MonoBehaviour types");
+>>>>>>> 9c31c7c3bd33c3d67b5c9a1a3d71d3be10f4427e
                 return null;
             }
             var newItem = Activator.CreateInstance<T>();
@@ -65,7 +69,11 @@ public static class MemPool
             var itemOut = (T)item;
 #if DEBUG
             if (itemOut == null)
+<<<<<<< HEAD
+                Debug.LogError($"MemPool -> Get<{type}>() :: return item is NULL");
+=======
                 Debug.LogError($"Pool -> Add(item={item}) :: Trying to return null item");
+>>>>>>> 9c31c7c3bd33c3d67b5c9a1a3d71d3be10f4427e
 #endif
             return itemOut;
         }
@@ -117,11 +125,14 @@ public static class MemPoolExt
         return items;
     }
 
+<<<<<<< HEAD
+=======
     public static T GetFrom_MemPool<T>(this T _) where T : class
     {
         return MemPool.Get<T>();
     }
 
+>>>>>>> 9c31c7c3bd33c3d67b5c9a1a3d71d3be10f4427e
     public static T FreeTo_MemPool<T>(this T item) where T : class
     {
         MemPool.Free(item);

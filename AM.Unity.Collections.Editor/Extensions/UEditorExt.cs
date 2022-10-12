@@ -2,8 +2,10 @@
 using UnityEditor;
 using UnityEngine;
 
+#if UNITY_EDITOR
 public static class UEditorExt
 {
+    
     public static IEnumerable<GameObject> SceneRoots()
     {
        var prop = new HierarchyProperty(HierarchyType.GameObjects);
@@ -34,3 +36,4 @@ public static class UEditorExt
        }
     }
 }
+#endif

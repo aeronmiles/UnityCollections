@@ -16,26 +16,6 @@ public static class RendererExt
         return renderers;
     }
 
-    public static List<Renderer> SetActive(this List<Renderer> renderers, bool active)
-    {
-        int l = renderers.Count;
-        for (int i = 0; i < l; i++)
-        {
-            renderers[i].gameObject.SetActive(active);
-        }
-        return renderers;
-    }
-
-    public static Renderer[] SetActive(this Renderer[] renderers, bool active)
-    {
-        int l = renderers.Length;
-        for (int i = 0; i < l; i++)
-        {
-            renderers[i].gameObject.SetActive(active);
-        }
-        return renderers;
-    }
-
     public static List<Material> SharedMaterials(this Renderer[] renderers)
     {
         List<Material> materials = new List<Material>();

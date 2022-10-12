@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 
 public static class ArrayExt
 {
@@ -6,6 +8,13 @@ public static class ArrayExt
     {
         int x = UnityEngine.Random.Range(0, array.Length);
         return array[x];
+    }
+
+    public static T TakeRandom<T>(this IEnumerable<T> array)
+    {
+        int l = array.Count();
+        int x = UnityEngine.Random.Range(0, l);
+        return array.ElementAt(x);
     }
 
     public static int[] NotIn(this int[] values, int[] notIn)

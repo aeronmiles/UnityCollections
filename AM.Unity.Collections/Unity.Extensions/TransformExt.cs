@@ -32,26 +32,6 @@ public static class TransformExt
         return objs;
     }
 
-    public static List<Transform> SetActive(this List<Transform> objs, bool active)
-    {
-        int l = objs.Count;
-        for (int i = 0; i < l; i++)
-        {
-            objs[i].gameObject.SetActive(active);
-        }
-        return objs;
-    }
-
-    public static Transform[] SetActive(this Transform[] objs, bool active)
-    {
-        int l = objs.Length;
-        for (int i = 0; i < l; i++)
-        {
-            objs[i].gameObject.SetActive(active);
-        }
-        return objs;
-    }
-
     public static Transform Closest(this Transform[] ts, Vector3 pos)
     {
         int l = ts.Length;
