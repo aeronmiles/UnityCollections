@@ -1,5 +1,17 @@
 fileFormatVersion: 2
+<<<<<<< HEAD
+<<<<<<<< HEAD:AM.Unity.Collections.Editor.meta
+guid: 03af3ce0e37703f4889c10b43132b3fc
+========
+guid: 5926b73bd2332c446a4729477c20f246
+>>>>>>>> 9c31c7c3bd33c3d67b5c9a1a3d71d3be10f4427e:AM,Unity.Collections.meta
+=======
+<<<<<<<< HEAD:AM.Unity.Collections/Native.Util.meta
+guid: b46048dacbe03734dbc28ef272454901
+========
 guid: eebdefde0d155ef479d730ed33fcef80
+>>>>>>>> 9c31c7c3bd33c3d67b5c9a1a3d71d3be10f4427e:AM.Unity.Collections.Editor.meta
+>>>>>>> 9c31c7c3bd33c3d67b5c9a1a3d71d3be10f4427e
 folderAsset: yes
 DefaultImporter:
   externalObjects: {}

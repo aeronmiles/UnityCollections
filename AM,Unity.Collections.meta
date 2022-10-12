@@ -1,5 +1,9 @@
 fileFormatVersion: 2
+<<<<<<<< HEAD:AM.Unity.Collections.Editor.meta
+guid: 6f131c0779264e04ea674c3e32f5360a
+========
 guid: 5926b73bd2332c446a4729477c20f246
+>>>>>>>> 9c31c7c3bd33c3d67b5c9a1a3d71d3be10f4427e:AM,Unity.Collections.meta
 folderAsset: yes
 DefaultImporter:
   externalObjects: {}
