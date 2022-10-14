@@ -1,41 +1,49 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
 public class MonoSingletonScene<T> : MonoBehaviour where T : Component
 {
-    static Type s_type = typeof(T);
+    static Type s_Type = typeof(T);
+    static Dictionary<int, Dictionary<Type, object>> s_Instances = new();
 
-    static Dictionary<int, Dictionary<Type, object>> s_instances = new();
+    public static T I(Scene scene)
+    {
+        int sceneIndex = scene.buildIndex;
 
-    public static T I(Scene scene) => s_instances[scene.buildIndex][s_type] as T;
+        CheckInstance(sceneIndex);
+
+        if (s_Instances[sceneIndex][s_Type] != null)
+            return s_Instances[sceneIndex][s_Type] as T;
+
+        T i = null;
+#if UNITY_EDITOR
+        i = FindObjectOfType<T>();
+#endif
+        if (i == null)
+            i = new GameObject(typeof(T).Name).AddComponent<T>();
+
+        s_Instances[sceneIndex][s_Type] = i;
+
+        return i;
+    }
 
     public virtual void Awake()
     {
-        CheckSceneInstance(s_type, gameObject.scene.buildIndex);
-        AfterAwake();
+        s_Instances = new();
+        CheckInstance(gameObject.scene.buildIndex, this);
     }
 
-    protected virtual void AfterAwake()
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    static void CheckInstance(int sceneIndex, object instance = null)
     {
+        if (!s_Instances.ContainsKey(sceneIndex))
+            s_Instances.Add(sceneIndex, new());
 
-    }
-
-    void CheckSceneInstance<T>(T typeOf, int sceneIndex) where T : Type
-    {
-        Debug.Log($"MonoSingleton<{typeOf}> -> CheckSceneInstance(sceneIndex = {sceneIndex})");
-        if (s_instances.ContainsKey(sceneIndex))
-        {
-            if (s_instances[sceneIndex].ContainsKey(typeOf))
-            {
-                Debug.Log($"MonoSingletonScene<{typeOf}> Awake() :: Destroy", this);
-                DestroyImmediate(gameObject);
-            }
-        }
-
-        s_instances.Add(sceneIndex, new());
-        s_instances[sceneIndex].Add(typeOf, this);
+        if (!s_Instances[sceneIndex].ContainsKey(s_Type))
+            s_Instances[sceneIndex].Add(s_Type, instance);
     }
 
 }

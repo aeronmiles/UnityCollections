@@ -8,6 +8,7 @@ public static class MemPool
     static Dictionary<Type, HashSet<object>> m_Free = new();
     static Dictionary<Type, HashSet<object>> m_Used = new();
 
+
     public static T Add<T>(T item, int count = 1) where T : class
     {
         var type = typeof(T);
@@ -81,13 +82,18 @@ public static class MemPool
 
     public static void DisposeAllOfType<T>() where T : class
     {
-        if (m_Free.ContainsKey(typeof(T)))
+        var type = typeof(T);
+        if (m_Free.ContainsKey(type))
         {
-            var type = typeof(T);
-            m_Free[type] = null;
-            m_Used[type] = null;
-            m_Free.Remove(type);
+            m_Free[type].Clear();
+            m_Used[type].Clear();
         }
+    }
+
+    public static void DisposeAll()
+    {
+        m_Used = new();
+        m_Free = new();
     }
 }
 
