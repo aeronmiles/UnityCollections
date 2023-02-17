@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using System.Collections.Generic;
+using UnityEngine;
 
 [System.Serializable]
 public class CachedTransform
@@ -93,5 +94,23 @@ public static class CachedTransformExtensions
         t.rotation = c.rotation;
         t.localScale = c.localScale;
         return t;
+    }
+
+    public static List<CachedTransform> ToCachedTransforms(this IEnumerable<Transform> transforms)
+    {
+        List<CachedTransform> cachedTransforms = new List<CachedTransform>();
+        foreach (Transform t in transforms)
+        {
+            cachedTransforms.Add(new CachedTransform(t));
+        }
+        return cachedTransforms;
+    }
+
+    public static void ResetTransforms(this IEnumerable<CachedTransform> cachedTransforms)
+    {
+        foreach (CachedTransform c in cachedTransforms)
+        {
+            c.Transform.SetFromCached(c);
+        }
     }
 }

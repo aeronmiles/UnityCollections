@@ -6,8 +6,8 @@ using UnityEngine.SceneManagement;
 
 public class MonoSingletonScene<T> : MonoBehaviour where T : Component
 {
-    static Type s_Type = typeof(T);
-    static Dictionary<int, Dictionary<Type, object>> s_Instances = new();
+    static readonly Type _type = typeof(T);
+    static Dictionary<int, Dictionary<Type, object>> _instances = new();
 
     public static T I(Scene scene)
     {
@@ -15,8 +15,8 @@ public class MonoSingletonScene<T> : MonoBehaviour where T : Component
 
         CheckInstance(sceneIndex);
 
-        if (s_Instances[sceneIndex][s_Type] != null)
-            return s_Instances[sceneIndex][s_Type] as T;
+        if (_instances[sceneIndex][_type] != null)
+            return _instances[sceneIndex][_type] as T;
 
         T i = null;
 #if UNITY_EDITOR
@@ -25,25 +25,25 @@ public class MonoSingletonScene<T> : MonoBehaviour where T : Component
         if (i == null)
             i = new GameObject(typeof(T).Name).AddComponent<T>();
 
-        s_Instances[sceneIndex][s_Type] = i;
+        _instances[sceneIndex][_type] = i;
 
         return i;
     }
 
     public virtual void Awake()
     {
-        s_Instances = new();
+        _instances = new();
         CheckInstance(gameObject.scene.buildIndex, this);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     static void CheckInstance(int sceneIndex, object instance = null)
     {
-        if (!s_Instances.ContainsKey(sceneIndex))
-            s_Instances.Add(sceneIndex, new());
+        if (!_instances.ContainsKey(sceneIndex))
+            _instances.Add(sceneIndex, new());
 
-        if (!s_Instances[sceneIndex].ContainsKey(s_Type))
-            s_Instances[sceneIndex].Add(s_Type, instance);
+        if (!_instances[sceneIndex].ContainsKey(_type))
+            _instances[sceneIndex].Add(_type, instance);
     }
 
 }
