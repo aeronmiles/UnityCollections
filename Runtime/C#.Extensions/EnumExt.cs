@@ -13,6 +13,14 @@ public static class EnumExt
         return (Arr.Length == j) ? Arr[0] : Arr[j];
     }
 
+    public static string GetNameFromIndex(this Type type, int index)
+    {
+        if (!type.IsEnum)
+            throw new ArgumentException(String.Format("Argument {0} is not an Enum", type.FullName));
+
+        return Enum.GetNames(type)[index];
+    }
+
     public static List<string> GetNamesFromIndexes(this Type type, IEnumerable<int> indexes)
     {
         if (!type.IsEnum)
@@ -25,10 +33,19 @@ public static class EnumExt
         return names;
     }
 
+    public static int GetIndexFromName(this Type type, string name)
+    {
+        if (!type.IsEnum)
+            throw new ArgumentException(String.Format("Argument {0} is not an Enum", type.FullName));
+
+        return Array.IndexOf(Enum.GetNames(type), name);
+    }
+
     public static List<int> GetIndexesFromNames(this Type type, IEnumerable<string> names)
     {
         if (!type.IsEnum)
             throw new ArgumentException(String.Format("Argument {0} is not an Enum", type.FullName));
+            
         var indexes = new List<int>();
         foreach (var name in names)
         {
