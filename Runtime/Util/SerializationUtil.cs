@@ -10,8 +10,8 @@ public static class SerializationUtil
     {
         if (!IsSerializable(obj)) return;
 
-        BinaryFormatter bf = new();
-        FileStream fs = new(Application.dataPath + fileName, FileMode.Create);
+        BinaryFormatter bf = new BinaryFormatter();
+        FileStream fs = new FileStream(Application.dataPath + fileName, FileMode.Create);
         bf.Serialize(fs, obj);
         fs.Close();
     }
@@ -24,8 +24,8 @@ public static class SerializationUtil
             return null;
         }
 
-        BinaryFormatter bf = new();
-        FileStream fs = new(Application.dataPath + fileName, FileMode.Open);
+        BinaryFormatter bf = new BinaryFormatter();
+        FileStream fs = new FileStream(Application.dataPath + fileName, FileMode.Open);
         T obj = (T)bf.Deserialize(fs);
         fs.Close();
 
@@ -34,7 +34,7 @@ public static class SerializationUtil
 
     public static string Serialize_AsString(this object o)
     {
-        using MemoryStream stream = new();
+        using MemoryStream stream = new MemoryStream();
         new BinaryFormatter().Serialize(stream, o);
         return Convert.ToBase64String(stream.ToArray());
     }
@@ -43,7 +43,7 @@ public static class SerializationUtil
     {
         byte[] bytes = Convert.FromBase64String(str);
 
-        using MemoryStream stream = new(bytes);
+        using MemoryStream stream = new MemoryStream(bytes);
         obj = new BinaryFormatter().Deserialize(stream) as T;
 
         return obj != null;

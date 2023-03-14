@@ -66,7 +66,7 @@ public class SerializableMesh
     // Sequential values are deserialized to Mesh original data types like Vector3 for vertices.
     public Mesh GetMesh()
     {
-        Mesh m = new();
+        Mesh m = new Mesh();
         List<Vector3> verticesList = new List<Vector3>();
         for (int i = 0; i < vertices.Length / 3; i++)
         {

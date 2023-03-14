@@ -5,7 +5,7 @@ using UnityEngine;
 
 public static class DataUtil
 {
-    public static bool Load<T>(out T dataOut, string path) where T : class
+    public static bool Load<T>(ref T dataOut, string path) where T : class
     {
         if (path.ToLower().Contains(".json"))
             return LoadJson(out dataOut, path);
@@ -33,7 +33,7 @@ public static class DataUtil
 
         if (data is T t)
         {
-            LogAsJson(path, data);
+            LogAsJson(path, t);
             dataOut = t;
             return true;
         }
@@ -69,7 +69,7 @@ public static class DataUtil
 
         if (data is T t)
         {
-            LogAsJson(path, data);
+            LogAsJson(path, t);
             dataOut = t;
             return true;
         }
@@ -80,6 +80,7 @@ public static class DataUtil
             return false;
         }
     }
+
     public static bool Save<T>(T data, string path) where T : class
     {
         if (path.ToLower().Contains(".json"))
@@ -88,28 +89,51 @@ public static class DataUtil
             return SaveBinary(data, path);
     }
 
+    public static bool SaveString(string jsonString, string filePath)
+    {
+        try
+        {
+            Debug.Log($"DataUtil -> Save(path={filePath}) :: Data saving\n" + jsonString);
+            using StreamWriter writer = new StreamWriter(filePath);
+            writer.Write(jsonString);
+            writer.Close();
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Debug.Log($"DataUtil -> Save(path={filePath}) :: Error saving data: " + ex.Message);
+            return false;
+        }
+    }
+
+    public static void Delete(string dataPath)
+    {
+        if (File.Exists(dataPath))
+            File.Delete(dataPath);
+    }
+
     private static bool SaveJson<T>(T data, string path) where T : class
     {
         try
         {
-            Debug.Log($"DataUtil -> Save(path={path}) :: Data saving:\n" + JsonUtility.ToJson(data, true));
-            using StreamWriter writer = new(path);
+            Debug.Log($"DataUtil -> SaveJson(path={path}) :: Data saving, Type: {typeof(T)}\n" + JsonUtility.ToJson(data, true));
+            using StreamWriter writer = new StreamWriter(path);
             writer.Write(JsonUtility.ToJson(data, true));
             writer.Close();
             return true;
         }
         catch (Exception ex)
         {
-            Debug.Log($"DataUtil -> Save(path={path}) :: Error saving data: " + ex.Message);
+            Debug.Log($"DataUtil -> SaveJson(path={path}) :: Error saving data: " + ex.Message);
             return false;
         }
     }
-    
+
     private static bool SaveBinary<T>(T data, string path) where T : class
     {
         try
         {
-            Debug.Log($"DataUtil -> Save(path={path}) :: Data saving:\n" + JsonUtility.ToJson(data));
+            Debug.Log($"DataUtil -> SaveBinary(path={path}) :: Data saving, Type: {typeof(T)}\n" + JsonUtility.ToJson(data));
 
             BinaryFormatter b = new BinaryFormatter();
             FileStream dataFile = File.Create(path);
@@ -119,12 +143,12 @@ public static class DataUtil
         }
         catch (Exception ex)
         {
-            Debug.Log($"DataUtil -> Save(path={path}) :: Error saving data: " + ex.Message);
+            Debug.Log($"DataUtil -> SaveBinary(path={path}) :: Error saving data: " + ex.Message);
             return false;
         }
     }
 
-    private static void LogAsJson(string path, object data)
+    private static void LogAsJson<T>(string path, T data)
     {
 #if UNITY_EDITOR
         // Attempt to output app data to console; don't break if we fail
@@ -137,5 +161,4 @@ public static class DataUtil
         }
 #endif
     }
-
 }

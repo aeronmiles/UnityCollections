@@ -7,7 +7,7 @@ using UnityEngine.SceneManagement;
 public class MonoSingletonScene<T> : MonoBehaviour where T : Component
 {
     static readonly Type _type = typeof(T);
-    static Dictionary<int, Dictionary<Type, object>> _instances = new();
+    static Dictionary<int, Dictionary<Type, object>> _instances = new Dictionary<int, Dictionary<Type, object>>();
 
     public static T I(Scene scene)
     {
@@ -32,7 +32,7 @@ public class MonoSingletonScene<T> : MonoBehaviour where T : Component
 
     public virtual void Awake()
     {
-        _instances = new();
+        _instances = new Dictionary<int, Dictionary<Type, object>>();
         CheckInstance(gameObject.scene.buildIndex, this);
     }
 
@@ -40,7 +40,7 @@ public class MonoSingletonScene<T> : MonoBehaviour where T : Component
     static void CheckInstance(int sceneIndex, object instance = null)
     {
         if (!_instances.ContainsKey(sceneIndex))
-            _instances.Add(sceneIndex, new());
+            _instances.Add(sceneIndex, new Dictionary<Type, object>());
 
         if (!_instances[sceneIndex].ContainsKey(_type))
             _instances[sceneIndex].Add(_type, instance);

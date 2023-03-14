@@ -19,6 +19,8 @@ public class ToggleButton : MonoBehaviour, IPointerDownHandler, IPointerEnterHan
     public bool Selected => m_selected;
     Button m_button;
 
+    public TMP_Text Text => GetComponentInChildren<TMP_Text>();
+
     private void OnEnable()
     {
         m_button = GetComponent<Button>();
@@ -28,6 +30,14 @@ public class ToggleButton : MonoBehaviour, IPointerDownHandler, IPointerEnterHan
             Debug.LogWarning("ToggleButton -> OnEnable() :: setting button transition to None", this);
         }
         Select(Selected);
+    }
+
+    public void SetTextByEnum(Type type, int index)
+    {
+        if (!type.IsEnum)
+            throw new ArgumentException($"Argument {type.FullName} is not an Enum");
+
+        Text.text = type.GetNameFromIndex(index).RemoveSpecialCharacters().Replace("_", " ");
     }
 
     public void Select(bool selected)
@@ -68,9 +78,8 @@ public class ToggleButton : MonoBehaviour, IPointerDownHandler, IPointerEnterHan
     public void OnPointerExit(PointerEventData eventData)
     {
         OnExit?.Invoke(this);
-    }	
+    }
 }
-
 
 [Serializable]
 public class SelectableTarget
@@ -114,5 +123,21 @@ public class SelectableTarget
             t.gameObject.SetActive(selected || !m_hideWhenNotSelected);
             t.color = selected ? m_selectedColor : m_unselectedColor;
         }
+    }
+}
+
+public static class ToggleButtonExt
+{
+    public static void ValidateEnumReference(this ToggleButton btn, Type type)
+    {
+        if (!type.IsEnum)
+            throw new ArgumentException($"Argument {type.FullName} is not an Enum");
+
+        var enumName = type.GetNameFromIndex(btn.Id).RemoveSpecialCharacters().ToLowerInvariant();
+        var btnName = btn.Text.text.RemoveSpecialCharacters().ToLowerInvariant();
+        if (enumName != btnName)
+            Debug.LogError($"ToggleButton -> ValidateEnumReference() :: {btn.name} :: {btnName} does not match {type.FullName} :: {enumName}", btn);
+        else
+            Debug.Log($"ToggleButton -> ValidateEnumReference() :: {btn.name} :: {btnName} matches {type.FullName} :: {enumName}", btn);
     }
 }

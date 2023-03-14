@@ -7,7 +7,6 @@ using UnityEngine;
 public class CoroutineRunner : MonoSingleton<CoroutineRunner>
 {
     public static void Run(IEnumerator coroutine) => I.StartCoroutine(coroutine);
-
     public static void RunAll(IEnumerable<IEnumerator> coroutines)
     {
         foreach (var coro in coroutines)
@@ -50,7 +49,7 @@ public class CoroutineRunner : MonoSingleton<CoroutineRunner>
 
 public class CoroutineQueue
 {
-    List<IEnumerator> m_Routines = new();
+    List<IEnumerator> m_Routines = new List<IEnumerator>();
 
     private bool disposed;
 

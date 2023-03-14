@@ -6,7 +6,7 @@ using UnityEngine;
 public class ToggleButtonManager : MonoBehaviour
 {
     public event Action<ToggleButton> OnButtOnDown;
-    [SerializeField] List<ToggleButton> m_buttons = new();
+    [SerializeField] List<ToggleButton> m_buttons = new List<ToggleButton>();
     [SerializeField] bool m_toggleOnPointerDown = true;
     [SerializeField] bool m_toggleOnPointerEnter = true;
     [SerializeField] int m_maxSelectionCount = 3;
@@ -16,7 +16,7 @@ public class ToggleButtonManager : MonoBehaviour
 
     public List<ToggleButton> ActiveToggleButtons => m_buttons.Where(b => b.gameObject.activeSelf).ToList();
 
-    private List<ToggleButton> m_registeredButtons = new();
+    private List<ToggleButton> m_registeredButtons = new List<ToggleButton>();
 
     int SelectionCount
     {
@@ -51,6 +51,31 @@ public class ToggleButtonManager : MonoBehaviour
             RegisterButton(button);
 
         if (m_deselectOnEnable) DeselectAll();
+    }
+
+    public void ValidateEnumReference(Type type)
+    {
+        if (!type.IsEnum)
+        {
+            Debug.LogError("ToggleButtonManager -> ValidateByEnumType() :: type is not an enum", this);
+            return;
+        }
+
+        foreach (var btn in m_buttons)
+            btn.ValidateEnumReference(type);
+    }
+
+    public void SetTextsByEnum(Type type)
+    {
+        if (!type.IsEnum)
+        {
+            Debug.LogError("ToggleButtonManager -> SetTextsByEnum() :: type is not an enum", this);
+            return;
+        }
+
+        int i = 0;
+        foreach (var btn in m_buttons)
+            btn.SetTextByEnum(type, i++);
     }
 
     private void OnDisable()
