@@ -95,26 +95,18 @@ public static class GameObjectExt
         return objs;
     }
 
-    public static bool AllActive(this GameObject[] gos)
+    public static bool AllActive(this IEnumerable<GameObject> gos)
     {
-        if (gos.Length == 0) return true;
-
         foreach (var go in gos)
-        {
             if (go != null && !go.activeSelf) return false;
-        }
 
         return true;
     }
 
-    public static bool NoneActive(this GameObject[] gos)
+    public static bool NoneActive(this IEnumerable<GameObject> gos)
     {
-        if (gos.Length == 0) return true;
-
         foreach (var go in gos)
-        {
             if (go != null && go.activeSelf) return false;
-        }
 
         return true;
     }

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
 
-public static class DataSerializer
+public static class DataLoader
 {
     private static Data m_data = new Data();
 

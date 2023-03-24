@@ -40,7 +40,13 @@ public static class ComponentExt
 
     public static IEnumerable<T> SetActive<T>(this IEnumerable<T> objs, bool active) where T : Component
     {
-        foreach (var obj in objs) obj.gameObject.SetActive(active);
+        foreach (var obj in objs)
+        {
+            if (obj != null)
+                obj.gameObject.SetActive(active);
+            else
+                Debug.LogWarning("Trying to set active a null object");
+        }
         return objs;
     }
 }

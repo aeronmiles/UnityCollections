@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using Unity.Mathematics;
 using System.Runtime.CompilerServices;
@@ -170,16 +171,24 @@ public static class Vector3Ext
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Vector3 Average(this Vector3[] vArray)
+
+    public static Vector3 Average(this IEnumerable<Vector3> vArray)
     {
-        Vector3 averagePos = Vector3.zero;
-        int l = vArray.Length;
-        for (int i = 0; i < l; i++)
+        int l = vArray.Count();
+        if (l == 0)
         {
-            averagePos += vArray[i];
+            Debug.LogWarning("Trying to average Vector3 array of Length 0");
+            return Vector3.zero;
         }
 
-        return averagePos / vArray.Length;
+        Vector3 averagePos = Vector3.zero;
+
+        foreach (Vector3 p in vArray)
+        {
+            averagePos += p;
+        }
+
+        return averagePos / l;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

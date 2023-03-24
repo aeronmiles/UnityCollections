@@ -4,11 +4,11 @@ using System.Linq;
 
 public static class ArrayExt
 {
-    public static T TakeRandom<T>(this T[] array)
-    {
-        int x = UnityEngine.Random.Range(0, array.Length);
-        return array[x];
-    }
+    // public static T TakeRandom<T>(this T[] array)
+    // {
+    //     int x = UnityEngine.Random.Range(0, array.Length);
+    //     return array[x];
+    // }
 
     public static T TakeRandom<T>(this IEnumerable<T> array)
     {

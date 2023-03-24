@@ -15,21 +15,32 @@ public static class TransformExt
         return ts;
     }
 
+    // public static Transform[] Children(this Transform transform)
+    // {
+    //     var childs = transform.GetComponentsInChildren<Transform>(true);
+    //     Transform[] objs = new Transform[0];
+    //     int l = childs.Length;
+    //     int x = 0;
+    //     for (int i = 0; i < l; i++)
+    //     {
+    //         if (childs[i].parent == transform)
+    //         {
+    //             Array.Resize(ref objs, x + 1);
+    //             objs[x++] = childs[i];
+    //         }
+    //     }
+    //     return objs;
+    // }
+
     public static Transform[] Children(this Transform transform)
     {
-        var childs = transform.GetComponentsInChildren<Transform>(true);
-        Transform[] objs = new Transform[0];
-        int l = childs.Length;
-        int x = 0;
-        for (int i = 0; i < l; i++)
-        {
-            if (childs[i].parent == transform)
-            {
-                Array.Resize(ref objs, x + 1);
-                objs[x++] = childs[i];
-            }
-        }
-        return objs;
+        return transform.GetComponentsInChildren<Transform>(true);
+        // List<Transform> objs = new List<Transform>();
+        // foreach (var c in childs)
+        // {
+        //     if (c.parent == transform) objs.Add(c);
+        // }
+        // return childs;
     }
 
     public static Transform Closest(this Transform[] ts, Vector3 pos)
