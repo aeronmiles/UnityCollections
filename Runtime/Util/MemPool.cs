@@ -5,8 +5,8 @@ using UnityEngine;
 
 public static class MemPool
 {
-    static Dictionary<Type, HashSet<object>> m_Free = new();
-    static Dictionary<Type, HashSet<object>> m_Used = new();
+    static Dictionary<Type, HashSet<object>> m_Free = new Dictionary<Type, HashSet<object>>();
+    static Dictionary<Type, HashSet<object>> m_Used = new Dictionary<Type, HashSet<object>>();
 
 
     public static T Add<T>(T item, int count = 1) where T : class
@@ -92,8 +92,8 @@ public static class MemPool
 
     public static void DisposeAll()
     {
-        m_Used = new();
-        m_Free = new();
+        m_Used = new Dictionary<Type, HashSet<object>>();
+        m_Free = new Dictionary<Type, HashSet<object>>();
     }
 }
 

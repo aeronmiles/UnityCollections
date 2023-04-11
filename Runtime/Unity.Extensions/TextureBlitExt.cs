@@ -1,13 +1,5 @@
-using System;
-using System.Collections;
-using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
-using UnityEngine.UI;
-using UnityEngine.Experimental.Rendering;
-using Unity.Mathematics;
-using UnityEditor;
-using rand = UnityEngine.Random;
 
 public static class TextureBlitExt
 {
@@ -23,14 +15,17 @@ public static class TextureBlitExt
 
     public static void SaveToPNG(this Texture2D texture, string path)
     {
-        var bytes = texture.EncodeToPNG();
-        File.WriteAllBytes(path, bytes);
+        File.WriteAllBytes(path, texture.EncodeToPNG());
+    }
+
+    public static void SaveToJPG(this Texture2D texture, string path, int quality = 100)
+    {
+        File.WriteAllBytes(path, texture.EncodeToJPG(quality));
     }
 
     public static void SaveToEXR(this Texture2D texture, string path)
     {
-        var bytes = texture.EncodeToEXR();
-        File.WriteAllBytes(path, bytes);
+        File.WriteAllBytes(path, texture.EncodeToEXR());
     }
 
 

@@ -16,11 +16,11 @@ public class JointController : MonoBehaviour
     public List<CachedTransform> CachedTransforms;
 
     public List<Transform> Joints;
-    public List<float> JointLengths = new();
+    public List<float> JointLengths = new List<float>();
     public int Count => JointLengths.Count;
 
     [SerializeField]
-    private List<Vector3> _prePosePositions = new();
+    private List<Vector3> _prePosePositions = new List<Vector3>();
     public List<Vector3> PrePosePositions
     {
         get
@@ -36,7 +36,7 @@ public class JointController : MonoBehaviour
         }
     }
 
-    private List<Quaternion> _prePoseRotations = new();
+    private List<Quaternion> _prePoseRotations = new List<Quaternion>();
     public List<Quaternion> PrePoseRotations
     {
         get

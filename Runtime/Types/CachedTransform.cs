@@ -2,7 +2,7 @@
 using UnityEngine;
 
 [System.Serializable]
-public class CachedTransform
+public struct CachedTransform
 {
     public Vector3 position;
     public Quaternion rotation;
