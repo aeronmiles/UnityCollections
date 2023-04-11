@@ -51,26 +51,7 @@ public class JointController : MonoBehaviour
         }
     }
 
-    private void OnDrawGizmos()
-    {
-        if (Joints == null || Joints.Count == 0)
-            OnEnable();
-
-        if (m_showGizmos)
-            Joints.ForEach(b =>
-            {
-                Gizmos.color = Color.black;
-                Gizmos.DrawWireSphere(b.position, 0.0035f);
-                Gizmos.color = Color.red;
-                Gizmos.DrawLine(b.position, b.position + b.right * 0.01f);
-                Gizmos.color = Color.green;
-                Gizmos.DrawLine(b.position, b.position + b.up * 0.01f);
-                Gizmos.color = Color.blue;
-                Gizmos.DrawLine(b.position, b.position + b.forward * 0.01f);
-            });
-    }
-
-    private void OnEnable()
+    private void Awake()
     {
         // Set cached transforms before entering play mode
         if (!Application.isPlaying)
@@ -109,6 +90,25 @@ public class JointController : MonoBehaviour
     public void Reset()
     {
         CachedTransforms.ResetTransforms();
+    }
+
+    private void OnDrawGizmos()
+    {
+        if (Joints == null || Joints.Count == 0)
+            Awake();
+
+        if (m_showGizmos)
+            Joints.ForEach(b =>
+            {
+                Gizmos.color = Color.black;
+                Gizmos.DrawWireSphere(b.position, 0.0035f);
+                Gizmos.color = Color.red;
+                Gizmos.DrawLine(b.position, b.position + b.right * 0.01f);
+                Gizmos.color = Color.green;
+                Gizmos.DrawLine(b.position, b.position + b.up * 0.01f);
+                Gizmos.color = Color.blue;
+                Gizmos.DrawLine(b.position, b.position + b.forward * 0.01f);
+            });
     }
 }
 

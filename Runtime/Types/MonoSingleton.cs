@@ -18,7 +18,8 @@ public class MonoSingleton<T> : MonoBehaviour where T : Component
         if (s_instance == null)
         {
             s_instance = this as T;
-            DontDestroyOnLoad(this);
+            if (Application.isPlaying)
+                DontDestroyOnLoad(this);
             AfterAwake();
         }
         else
@@ -30,7 +31,7 @@ public class MonoSingleton<T> : MonoBehaviour where T : Component
 
     protected virtual void AfterAwake()
     {
-        
+
     }
 
 }

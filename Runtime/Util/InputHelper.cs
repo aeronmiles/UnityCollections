@@ -4,7 +4,6 @@ using System.Collections.Generic;
 
 public class InputHelper : MonoBehaviour
 {
-
     private static TouchCreator lastFakeTouch;
 
     public static Touch GetTouches(int index)
