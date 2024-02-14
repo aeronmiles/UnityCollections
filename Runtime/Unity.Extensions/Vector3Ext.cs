@@ -3,6 +3,7 @@ using System.Linq;
 using UnityEngine;
 using Unity.Mathematics;
 using System.Runtime.CompilerServices;
+using Microsoft.Win32;
 
 public static class Vector3Ext
 {
@@ -171,10 +172,9 @@ public static class Vector3Ext
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-
-    public static Vector3 Average(this IEnumerable<Vector3> vArray)
+    public static Vector3 Average(this IEnumerable<Vector3> vArray, IEnumerable<int> indexes = null)
     {
-        int l = vArray.Count();
+        var l = indexes == null ? vArray.Count() : indexes.Count();
         if (l == 0)
         {
             Debug.LogWarning("Trying to average Vector3 array of Length 0");
@@ -182,12 +182,20 @@ public static class Vector3Ext
         }
 
         Vector3 averagePos = Vector3.zero;
-
-        foreach (Vector3 p in vArray)
+        if (indexes != null)
         {
-            averagePos += p;
+            foreach (int i in indexes)
+            {
+                averagePos += vArray.ElementAt(i);
+            }
         }
-
+        else
+        {
+            foreach (Vector3 p in vArray)
+            {
+                averagePos += p;
+            }
+        }
         return averagePos / l;
     }
 
@@ -247,5 +255,5 @@ public static class Vector3Ext
     public static Quaternion ToQuaternion(this Vector3 v)
     {
         return Quaternion.Euler(v.x, v.y, v.z);
-    } 
+    }
 }
