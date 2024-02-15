@@ -58,6 +58,7 @@ public static class ARUtil
         Debug.Log($"ARUtil -> ARSupportedDevice() :: iOS device gen: {gen}");
         return true;
 #endif
+        return false;
     }
 
     public static bool FaceTrackingSupported()
