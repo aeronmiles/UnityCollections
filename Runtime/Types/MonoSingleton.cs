@@ -2,22 +2,24 @@ using UnityEngine;
 
 public class MonoSingleton<T> : MonoBehaviour where T : Component
 {
-    private static T s_instance = null;
+    private static T _Instance = null;
     public static T I
     {
         get
         {
-            if (s_instance != null) return s_instance;
-            s_instance = new GameObject(typeof(T).Name).AddComponent<T>();
-            return s_instance;
+            if (_Instance != null) return _Instance;
+            _Instance = FindObjectOfType<T>();
+            if (_Instance != null) return _Instance;
+            _Instance = new GameObject(typeof(T).Name).AddComponent<T>();
+            return _Instance;
         }
     }
 
     public virtual void Awake()
     {
-        if (s_instance == null)
+        if (_Instance == null)
         {
-            s_instance = this as T;
+            _Instance = this as T;
             if (Application.isPlaying)
                 DontDestroyOnLoad(this);
             AfterAwake();
