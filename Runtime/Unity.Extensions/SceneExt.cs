@@ -4,16 +4,16 @@ using UnityEngine.SceneManagement;
 
 public static class SceneExtensions
 {
-    public static bool SceneLoaded(string name)
-    {
+  public static bool SceneLoaded(string name)
+  {
 #if UNITY_EDITOR
-        for (int i = 0; i < UnityEditor.SceneManagement.EditorSceneManager.sceneCount; ++i)
-        {
-            var scene = UnityEditor.SceneManagement.EditorSceneManager.GetSceneAt(i);
+    for (int i = 0; i < UnityEditor.SceneManagement.EditorSceneManager.sceneCount; ++i)
+    {
+      var scene = UnityEditor.SceneManagement.EditorSceneManager.GetSceneAt(i);
 
-            if (scene.name == name) return true;
-        }
-        return false;
+      if (scene.name == name) return true;
+    }
+    return false;
 #else
         for (int i = 0; i < SceneManager.sceneCount; ++i)
         {
@@ -22,5 +22,5 @@ public static class SceneExtensions
         }
         return false;
 #endif
-    }
+  }
 }

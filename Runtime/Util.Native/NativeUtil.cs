@@ -21,10 +21,10 @@ public static class NativeUtil
         }
     }
 #elif UNITY_IOS
-    public static void GetDevicePermission(string permission, Action<bool> onPermission)
-    {
-        onPermission(true);
-        throw new NotImplementedException();
-    }
+  public static void GetDevicePermission(string permission, Action<bool> onPermission)
+  {
+    onPermission(true);
+    throw new NotImplementedException();
+  }
 #endif
 }

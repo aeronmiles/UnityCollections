@@ -1,0 +1,62 @@
+#pragma kernel CalculateHSVBoundsSingleThreaded
+
+#include "UnityCG.cginc"
+#include "Assets/UnityCollections/Shaders/HLSL/ColorConversion.hlsl"
+#include "Assets/UnityCollections/Shaders/HLSL/Structures.hlsl"
+
+// Input texture
+Texture2D<float4> _InputTex;
+// Output buffer for global HSV bounds
+RWStructuredBuffer<HSVBounds> _HSVBoundsBuffer;
+float2 _TexSize;
+// Gamma correction factor
+float _Gamma;
+
+[numthreads(1, 1, 1)]
+void CalculateHSVBoundsSingleThreaded(uint3 id : SV_DispatchThreadID) {
+    // Ensure this kernel is executed by a single thread
+    if (id.x > 0 || id.y > 0 || id.z > 0) return;
+
+    // Initialize bounds with extreme values
+    float hMin = 1.0f, hMax = 0.0f;
+    float sMin = 1.0f, sMax = 0.0f;
+    float vMin = 1.0f, vMax = 0.0f;
+    float hMedian = 0.0f, sMedian = 0.0f, vMedian = 0.0f;
+    float hSum = 0.0f, sSum = 0.0f, vSum = 0.0f;
+
+    // uint2 texSize = _InputTex.GetDimensions();
+    for (int y = 0; y < _TexSize.y; ++y) {
+        for (int x = 0; x < _TexSize.x; ++x) {
+            float4 color = _InputTex.Load(int3(x, y, 0));
+            // Apply gamma correction
+            color.rgb = pow(color.rgb, _Gamma);
+
+            // Convert to HSV
+            float3 hsv = RGBtoHSV(color.rgb);
+            hSum += hsv.x;
+            sSum += hsv.y;
+            vSum += hsv.z;
+            // Update bounds
+            hMin = min(hMin, hsv.x);
+            hMax = max(hMax, hsv.x);
+            sMin = min(sMin, hsv.y);
+            sMax = max(sMax, hsv.y);
+            vMin = min(vMin, hsv.z);
+            vMax = max(vMax, hsv.z);
+        }
+    }
+
+    // Write the results back to the buffer
+    HSVBounds bounds;
+    bounds.hMin = hMin;
+    bounds.hMax = hMax;
+    bounds.sMin = sMin;
+    bounds.sMax = sMax;
+    bounds.vMin = vMin;
+    bounds.vMax = vMax;
+    float numPixels = _TexSize.x * _TexSize.y;
+    bounds.hMedian = hSum / numPixels;
+    bounds.sMedian = sSum / numPixels;
+    bounds.vMedian = vSum / numPixels;
+    _HSVBoundsBuffer[0] = bounds;
+}

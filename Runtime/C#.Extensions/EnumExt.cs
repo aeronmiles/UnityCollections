@@ -3,56 +3,68 @@ using System.Collections.Generic;
 
 public static class EnumExt
 {
-    public static T Next<T>(this T src) where T : struct
+  public static T Next<T>(this T src) where T : struct
+  {
+    if (!typeof(T).IsEnum)
     {
-        if (!typeof(T).IsEnum)
-            throw new ArgumentException($"Argument {typeof(T).FullName} is not an Enum");
-
-        T[] Arr = (T[])Enum.GetValues(src.GetType());
-        int j = Array.IndexOf<T>(Arr, src) + 1;
-        return (Arr.Length == j) ? Arr[0] : Arr[j];
+      throw new ArgumentException($"Argument {typeof(T).FullName} is not an Enum");
     }
 
-    public static string GetNameFromIndex(this Type type, int index)
-    {
-        if (!type.IsEnum)
-            throw new ArgumentException($"Argument {0} is not an Enum", type.FullName);
+    T[] Arr = (T[])Enum.GetValues(src.GetType());
+    int j = Array.IndexOf(Arr, src) + 1;
+    return (Arr.Length == j) ? Arr[0] : Arr[j];
+  }
 
-        return Enum.GetNames(type)[index];
+  public static string GetNameFromIndex(this Type type, int index)
+  {
+    if (!type.IsEnum)
+    {
+      throw new ArgumentException($"Argument {0} is not an Enum", type.FullName);
     }
 
-    public static List<string> GetNamesFromIndexes(this Type type, IEnumerable<int> indexes)
+    return Enum.GetNames(type)[index];
+  }
+
+  public static List<string> GetNamesFromIndexes(this Type type, IEnumerable<int> indexes)
+  {
+    if (!type.IsEnum)
     {
-        if (!type.IsEnum)
-            throw new ArgumentException($"Argument {type.FullName} is not an Enum");
-
-        var names = new List<string>();
-        foreach (var index in indexes)
-            names.Add(Enum.GetNames(type)[index]);
-
-        return names;
+      throw new ArgumentException($"Argument {type.FullName} is not an Enum");
     }
 
-    public static int GetIndexFromName(this Type type, string name)
+    var names = new List<string>();
+    foreach (var index in indexes)
     {
-        if (!type.IsEnum)
-            throw new ArgumentException($"Argument {type.FullName} is not an Enum");
-
-        return Array.IndexOf(Enum.GetNames(type), name);
+      names.Add(Enum.GetNames(type)[index]);
     }
 
-    public static List<int> GetIndexesFromNames(this Type type, IEnumerable<string> names)
-    {
-        if (!type.IsEnum)
-            throw new ArgumentException($"Argument {type.FullName} is not an Enum");
+    return names;
+  }
 
-        var indexes = new List<int>();
-        foreach (var name in names)
-        {
-            var n = name.Replace(" ", "_");
-            var index = Array.IndexOf(Enum.GetNames(type), n);
-            indexes.Add(index);
-        }
-        return indexes;
+  public static int GetIndexFromName(this Type type, string name)
+  {
+    if (!type.IsEnum)
+    {
+      throw new ArgumentException($"Argument {type.FullName} is not an Enum");
     }
+
+    return Array.IndexOf(Enum.GetNames(type), name);
+  }
+
+  public static List<int> GetIndexesFromNames(this Type type, IEnumerable<string> names)
+  {
+    if (!type.IsEnum)
+    {
+      throw new ArgumentException($"Argument {type.FullName} is not an Enum");
+    }
+
+    var indexes = new List<int>();
+    foreach (var name in names)
+    {
+      var n = name.Replace(" ", "_");
+      var index = Array.IndexOf(Enum.GetNames(type), n);
+      indexes.Add(index);
+    }
+    return indexes;
+  }
 }

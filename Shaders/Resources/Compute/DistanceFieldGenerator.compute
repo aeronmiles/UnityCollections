@@ -1,0 +1,38 @@
+#pragma kernel GenerateDistanceField
+
+RWTexture2D<float4> OutputTexture;
+float threshold = 0.5; // Threshold for defining the feature in the noise
+StructuredBuffer<int> dimensions;
+
+[numthreads(8, 8, 1)]
+void GenerateDistanceField(uint3 id : SV_DispatchThreadID)
+{
+  float width = dimensions[0];
+  float height = dimensions[1];
+  // Sample the generated noise
+  float noiseValue = OutputTexture[id.xy].r; // Assuming noise is stored in the red channel
+
+  // Initial distance is large if above threshold, otherwise 0
+  float distance = (noiseValue > threshold) ? 9999.0 : 0.0; 
+
+  // Jump Flooding Algorithm
+  // (You may need to adjust the passes and offsets based on your distance calculation method)
+  uint2 offsets[4] = { 
+      uint2(1, 0),  uint2(0, 1),
+      uint2(-1, 0), uint2(0, -1)
+  };
+
+  for (int i = 0; i < 2; i++) { // Typically 2 passes for reasonable accuracy
+      for (uint d = 0; d < 4; d++) {
+          int2 sampleCoord = id.xy - offsets[d];
+          sampleCoord.x = clamp(sampleCoord.x, 0, width - 1);
+          sampleCoord.y = clamp(sampleCoord.y, 0, height - 1);
+
+          float neighborDist = OutputTexture[sampleCoord].g; // Assuming distance field in green channel
+          distance = min(distance, neighborDist + 1.0); 
+      }
+  }
+
+  // Store calculated values
+  OutputTexture[id.xy] = float4(noiseValue, distance, 0, 0); // You can adjust channels as needed
+}

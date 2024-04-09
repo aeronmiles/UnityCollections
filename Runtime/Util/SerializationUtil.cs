@@ -5,10 +5,12 @@ using UnityEngine;
 
 public static class SerializationUtil
 {
-
     public static void SaveTo_ApplicationDataPath<T>(T obj, string fileName) where T : class
     {
-        if (!IsSerializable(obj)) return;
+        if (!IsSerializable(obj))
+        {
+            return;
+        }
 
         BinaryFormatter bf = new BinaryFormatter();
         FileStream fs = new FileStream(Application.dataPath + fileName, FileMode.Create);
