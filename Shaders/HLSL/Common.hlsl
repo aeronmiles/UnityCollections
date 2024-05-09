@@ -14,11 +14,13 @@ float3 mod289(float3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
 float2 mod289(float2 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
 float3 permute(float3 x) { return mod289(((x*34.0)+1.0)*x); }
 float rand(float2 st) { return frac(sin(dot(st.xy, float2(12.9898,78.233))) * 43758.5453123); }
+float randUnit(float2 st) { return frac(sin(dot(st.xy, float2(12.9898,78.233))) * 43758.5453123) * 2.0 - 1.0; }
 float offset(float x, float power, float offset) { return pow(x, power) + offset; }
 float3 offset(float3 xyz, float power, float offset) { return pow(xyz, power) + offset; }
-float rotate2D(float2 uv, float angle) 
+
+float2 rotate2D(float2 vec, float angle) 
 { 
-  return float2(uv.x * cos(angle) - uv.y * sin(angle), uv.x * sin(angle) + uv.y * cos(angle)); 
+  return float2(cos(angle) * vec.x - sin(angle) * vec.y, sin(angle) * vec.x + cos(angle) * vec.y);
 }
 
 // Approximate screen space UVs (note: not 100% accurate with perspective)
@@ -29,6 +31,25 @@ float2 uvScreen(float4 vert)
     uvScreen.x = (vert.x / vert.w + 1.0) * 0.5; 
     uvScreen.y = (vert.y / vert.w + 1.0) * 0.5;
     uvScreen.y = 1.0 - uvScreen.y; // Flip Y
+    return uvScreen;
+}
+
+// Approximate screen space UVs (note: not 100% accurate with perspective)
+float2 uvScreen(float4 vert, float rotationRadians)
+{
+    // Approximate screen space UVs (note: not 100% accurate with perspective)
+    float2 uvScreen;
+    uvScreen.x = (vert.x / vert.w + 1.0) * 0.5; 
+    uvScreen.y = (vert.y / vert.w + 1.0) * 0.5;
+    uvScreen.y = 1.0 - uvScreen.y; // Flip Y
+    
+    // Apply inverse rotation to the UV coordinates
+    float2x2 rotationMatrix = float2x2(cos(rotationRadians), sin(rotationRadians),
+                                       -sin(rotationRadians), cos(rotationRadians));
+    
+    // Translate UVs to center, apply rotation, then translate back
+    uvScreen = mul(rotationMatrix, (uvScreen - 0.5)) + 0.5;
+
     return uvScreen;
 }
 
@@ -49,6 +70,13 @@ float expFresnel(float3 worldPos, float3 worldNorm)
     float3 normal = normalize(mul(unity_ObjectToWorld, float4(worldNorm, 0.0)).xyz); 
     float3 viewDir = normalize(_WorldSpaceCameraPos - worldPos);
     return 1.0 - fresnel(normal, viewDir);
+}
+
+float lerpWithMidpointOffset(float lerpFactor, float midpointOffset) {
+  float adjustedLerpFactor = lerpFactor * 2.0 - 1.0; // Map lerpFactor from [0, 1] to [-1, 1]
+  float offsetLerpFactor = adjustedLerpFactor * (1.0 - midpointOffset) + midpointOffset; // Apply midpoint offset
+  float result = smoothstep(-1.0, 1.0, offsetLerpFactor); // Smoothly interpolate between 0 and 1
+  return result;
 }
 
 // ========= Hash ===========

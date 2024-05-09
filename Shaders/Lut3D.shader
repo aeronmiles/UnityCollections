@@ -4,7 +4,6 @@ Shader "AM/Unlit/LUT3D"
     {
         _MainTex ("Texture", 2D) = "white" {}
         _LutTex ("LUT", 3D) = "white" {} 
-        _LutAmount ("LUT Amount", Range(0, 1)) = 1
         _Lift ("Lift", Range(0, 2)) = 0
         _Gain ("Gain", Range(0, 2)) = 0
         _ShadowGamma ("Shadow Gamma", Range(0, 4)) = 1

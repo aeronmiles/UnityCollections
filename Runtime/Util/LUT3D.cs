@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 public class LUT3D : MonoBehaviour
@@ -68,5 +70,80 @@ public class LUT3D : MonoBehaviour
     }
 
     return lutColors;
+  }
+}
+
+[Serializable]
+public class LutPair
+{
+  public Color coordColor;
+  public Color lutColor;
+}
+
+public static class LutExtensions
+{
+  public static Texture3D CreateLut(this IEnumerable<LutPair> lutPairs, int size)
+  {
+    // Create a new Texture3D
+    Texture3D lutTexture = new Texture3D(size, size, size, TextureFormat.RGBAFloat, false);
+
+    // Prepare color array for Texture3D
+    Color[] colors = new Color[size * size * size];
+    float sizeLessOne = size - 1;
+    // Fill in the colors array with LUT values
+    for (int z = 0; z < size; z++)
+    {
+      for (int y = 0; y < size; y++)
+      {
+        for (int x = 0; x < size; x++)
+        {
+          Color interpolatedColor = InterpolateColor(lutPairs, x / sizeLessOne, y / sizeLessOne, z / sizeLessOne);
+          colors[x + (y * size) + (z * size * size)] = interpolatedColor;
+        }
+      }
+    }
+
+    // Set the pixels of the Texture3D
+    lutTexture.SetPixels(colors);
+    lutTexture.Apply();
+
+    return lutTexture;
+  }
+
+  private static Color InterpolateColor(IEnumerable<LutPair> lutPairs, float x, float y, float z)
+  {
+    LutPair closestPair = null;
+    LutPair secondClosestPair = null;
+    float closestDistance = Mathf.Infinity;
+    float secondClosestDistance = Mathf.Infinity;
+
+    foreach (LutPair pair in lutPairs)
+    {
+      float distance = Vector3.Distance(new Vector3(pair.coordColor.r, pair.coordColor.g, pair.coordColor.b), new Vector3(x, y, z));
+      if (distance < closestDistance)
+      {
+        secondClosestPair = closestPair;
+        secondClosestDistance = closestDistance;
+        closestPair = pair;
+        closestDistance = distance;
+      }
+      else if (distance < secondClosestDistance)
+      {
+        secondClosestPair = pair;
+        secondClosestDistance = distance;
+      }
+    }
+
+    if (closestPair == null || secondClosestPair == null)
+    {
+      return Color.black; // Fallback in case no closest or second closest pair found
+    }
+
+    // Compute the interpolation factor (assuming distance is a good metric for this)
+    float t = closestDistance / (closestDistance + secondClosestDistance);
+
+    // Linearly interpolate between the two closest colors
+    Color interpolatedColor = Color.Lerp(closestPair.lutColor, secondClosestPair.lutColor, t);
+    return interpolatedColor;
   }
 }

@@ -1,17 +1,32 @@
-using System;
 using System.Collections;
 using System.IO;
 using UnityEngine;
-using UnityEngine.Networking;
 using UnityEngine.Rendering;
 
-public static class TextureBlitExt
+public static class TextureExt
 {
   public static RenderTexture GetTemporaryRT(this Texture texture, int depth = 0)
   {
     var rt = RenderTexture.GetTemporary(texture.width, texture.height, depth, texture.graphicsFormat);
     rt.filterMode = texture.filterMode;
     return rt;
+  }
+
+  public static Texture3D ToTexture3D(this RenderTexture rt, TextureFormat format, bool mipChains = false)
+  {
+    if (rt.volumeDepth == 0)
+    {
+      Debug.LogError("RenderTexture is not a 3D texture");
+      return null;
+    }
+
+    var tex = new Texture3D(rt.width, rt.height, rt.volumeDepth, format, mipChains)
+    {
+      filterMode = rt.filterMode,
+      wrapMode = rt.wrapMode
+    };
+    Graphics.CopyTexture(rt, 0, 0, tex, 0, 0);
+    return tex;
   }
 
   public static Texture2D ToTexture2D(this Texture texture, TextureFormat format, bool linear = false, bool mipChains = false)
@@ -28,12 +43,11 @@ public static class TextureBlitExt
       filterMode = texture.filterMode,
       wrapMode = texture.wrapMode
     };
-    texture.BlitToTex(tex);
-
+    Graphics.CopyTexture(texture, 0, 0, tex, 0, 0);
     return tex;
   }
 
-  public static Texture2D ConvertToHSV_CPU(this Texture2D texture)
+  public static Texture2D ConvertToHSV(this Texture2D texture)
   {
     var tex = new Texture2D(texture.width, texture.height, texture.format, false, true)
     {
@@ -239,7 +253,6 @@ public static class TextureBlitExt
     RenderTexture.ReleaseTemporary(texRT);
   }
 
-
   /// <summary>
   /// blit sourceTex to texOut
   /// </summary>
@@ -270,51 +283,19 @@ public static class TextureBlitExt
 
   public static void BlitToTex(this RenderTexture sourceTex, Texture2D texOut, Material[] mats, bool mipChains = false)
   {
-    // int w = texOut.width;
-    // int h = texOut.height;
-    // var cachedRT = RenderTexture.active;
     sourceTex.BlitMaterials(mats);
     RenderTexture.active = sourceTex;
     Graphics.CopyTexture(sourceTex, 0, 0, texOut, 0, 0);
-    // texOut.ReadPixels(new Rect(0, 0, w, h), 0, 0, false);
     texOut.Apply(mipChains);
-
-    // Cleanup
-    // RenderTexture.active = cachedRT;
   }
 
   public static IEnumerator BlitToTexAsync(this RenderTexture sourceTex, Texture2D texOut, Material[] mats = null, bool mipChains = false)
   {
-    sourceTex.BlitMaterials(mats);
-
-    AsyncGPUReadbackRequest request = AsyncGPUReadback.Request(texOut);
-    yield return request;
-
-    texOut.LoadRawTextureData(request.GetData<byte>());
-    texOut.Apply(mipChains);
+    throw new System.NotImplementedException();
   }
 
   public static bool IsFloatFormat(this Texture2D texture)
   {
     return texture.format == TextureFormat.RGBAHalf || texture.format == TextureFormat.RGBAFloat || texture.format == TextureFormat.RHalf || texture.format == TextureFormat.RFloat || texture.format == TextureFormat.RGHalf || texture.format == TextureFormat.RGFloat;
-  }
-
-  public static IEnumerator LoadImage(string path, Action<Texture2D> callback = null)
-  {
-    using (UnityWebRequest uwr = UnityWebRequestTexture.GetTexture(path))
-    {
-      yield return uwr.SendWebRequest();
-
-      if (uwr.result != UnityWebRequest.Result.Success)
-      {
-        Debug.Log(uwr.error);
-      }
-      else
-      {
-        // Get downloaded asset bundle
-        Texture2D texture = DownloadHandlerTexture.GetContent(uwr);
-        callback?.Invoke(texture);
-      }
-    }
   }
 }

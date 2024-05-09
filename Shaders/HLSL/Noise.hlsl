@@ -159,10 +159,7 @@ float noise (in float2 st) {
 float fbm (in float2 uv, int octaves, float amplitude) {
 	// Initial values
 	float value = 0.0;
-	// float amplitude = .5;
-	// float frequency = 0.;
-	//
-	// Loop of octaves
+  // Loop of octaves
 	for (int i = 0; i < octaves; i++) {
 		value += amplitude * noise(uv);
 		uv *= 2.;
@@ -171,11 +168,13 @@ float fbm (in float2 uv, int octaves, float amplitude) {
 	return value;
 }
 
+float fbmUnit(in float2 uv, int octaves, float amplitude)
+{
+  return fbm(uv, octaves, amplitude) * 2.0 / amplitude; 
+}
+
 void fbm_float(float2 uv, float octaves, float amplitude, float frequency, out float Out)
 {
-	// float2 st = gl_FragCoord.xy/u_resolution.xy;
-	// st.x *= u_resolution.x/u_resolution.y;
-
 	uv *= frequency;
 	Out = fbm(uv, (int)octaves, amplitude);
 }

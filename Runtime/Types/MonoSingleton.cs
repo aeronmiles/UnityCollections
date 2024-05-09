@@ -2,38 +2,57 @@ using UnityEngine;
 
 public class MonoSingleton<T> : MonoBehaviour where T : Component
 {
-  private static T _Instance = null;
+  private static T _Instance;
+  private static readonly object _Lock = new object();
+
   public static T I
   {
     get
     {
-      if (_Instance != null) return _Instance;
-      _Instance = FindObjectOfType<T>();
-      if (_Instance != null) return _Instance;
-      _Instance = new GameObject(typeof(T).Name).AddComponent<T>();
-      return _Instance;
+      lock (_Lock)
+      {
+        if (_Instance == null)
+        {
+          _Instance = FindObjectOfType<T>();
+          if (_Instance == null)
+          {
+            GameObject singletonObject = new GameObject();
+            _Instance = singletonObject.AddComponent<T>();
+            singletonObject.name = typeof(T).ToString() + " (Singleton)";
+            if (Application.isPlaying)
+            {
+              DontDestroyOnLoad(singletonObject);
+            }
+          }
+        }
+
+        return _Instance;
+      }
     }
   }
 
-  public virtual void Awake()
+  protected virtual void Awake()
   {
-    if (_Instance == null)
+    lock (_Lock)
     {
-      _Instance = this as T;
-      if (Application.isPlaying)
-        DontDestroyOnLoad(this);
-      AfterAwake();
-    }
-    else
-    {
-      Debug.Log($"MonoSingleton<{typeof(T)}> Awake() :: Destroy", this);
-      DestroyImmediate(gameObject);
+      if (_Instance == null)
+      {
+        _Instance = this as T;
+      }
+      else
+      {
+        Debug.LogError($"Another instance of {typeof(T)} was attempted to be created, which is not allowed.");
+        DestroyImmediate(gameObject);
+      }
     }
   }
 
-  protected virtual void AfterAwake()
+  public virtual void OnDestroy()
   {
-
+    Debug.Log($"MonoSingleton<{typeof(T)}> OnDestroy()");
+    if (_Instance == this)
+    {
+      _Instance = null;
+    }
   }
-
 }

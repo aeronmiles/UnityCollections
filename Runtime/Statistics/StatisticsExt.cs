@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using Unity.Collections;
 using Unity.Mathematics;
 using UnityEngine;
@@ -10,6 +11,7 @@ namespace AM.Unity.Statistics
 {
   public static class StatisticsExt
   {
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static MeanMedianVarMinMaxFloat3 ToMeanMedianVarMinMax(this IEnumerable<Color> colors)
     {
       var floats = colors.ToFloat3();
@@ -26,6 +28,7 @@ namespace AM.Unity.Statistics
       return mmv;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static MeanMedianVarMinMaxFloat3 ToMeanMedianVarMinMax(this NativeArray<Color> colors)
     {
       var floats = colors.ToFloat3();
@@ -43,6 +46,7 @@ namespace AM.Unity.Statistics
       return mmv;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static List<float> Errors(this IEnumerable<float> values, float referenceValue)
     {
       List<float> errors = values.ToList();
@@ -54,6 +58,7 @@ namespace AM.Unity.Statistics
       return errors;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static float3 Mean(this IEnumerable<float3> float3s)
     {
       float3 m = new float3();
@@ -65,6 +70,7 @@ namespace AM.Unity.Statistics
       return m / float3s.Count();
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static float Mean(this IEnumerable<float> floats)
     {
       float m = 0f;
@@ -76,6 +82,7 @@ namespace AM.Unity.Statistics
       return m / floats.Count();
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static float3 Min(this IEnumerable<float3> float3s)
     {
       float3 m = new float3(float.MaxValue, float.MaxValue, float.MaxValue);
@@ -89,6 +96,7 @@ namespace AM.Unity.Statistics
       return m;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static float Min(this IEnumerable<float> floats)
     {
       float m = float.MaxValue;
@@ -100,6 +108,7 @@ namespace AM.Unity.Statistics
       return m;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static float3 Max(this IEnumerable<float3> float3s)
     {
       float3 m = new float3(float.MinValue, float.MinValue, float.MinValue);
@@ -113,6 +122,7 @@ namespace AM.Unity.Statistics
       return m;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static float Max(this IEnumerable<float> floats)
     {
       float m = float.MinValue;
@@ -124,6 +134,7 @@ namespace AM.Unity.Statistics
       return m;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static float Median(this NativeArray<float> floats)
     {
       var sorted = floats.Sort();
@@ -136,6 +147,7 @@ namespace AM.Unity.Statistics
       return median;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static float3 Median(this NativeArray<float3> float3s)
     {
       var xVals = float3s.XValues();
@@ -152,6 +164,7 @@ namespace AM.Unity.Statistics
       return median;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static float3 Median(this IEnumerable<float3> float3s)
     {
       var median = new float3(
@@ -162,6 +175,7 @@ namespace AM.Unity.Statistics
       return median;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static float Median(this IEnumerable<float> floats)
     {
       int l = floats.Count();
@@ -190,8 +204,10 @@ namespace AM.Unity.Statistics
       return median;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static float Squared(this float f) => math.sqrt(f);
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static float3 Variance(this IEnumerable<float3> float3s, float3 mean)
     {
       int l = 0;
@@ -212,6 +228,7 @@ namespace AM.Unity.Statistics
       }
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static float Variance(this IEnumerable<float> floats, float mean)
     {
       int l = 0;
@@ -232,6 +249,7 @@ namespace AM.Unity.Statistics
       }
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static float2 Quartiles(this IEnumerable<float> data)
     {
       float2 quartiles = new float2();
@@ -247,6 +265,7 @@ namespace AM.Unity.Statistics
       return quartiles;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static MeanMedianVarMinMax ToMeanMedianVarMinMax(this IEnumerable<float> floats)
     {
       float mean = floats.Mean();
@@ -262,6 +281,7 @@ namespace AM.Unity.Statistics
       return mmv;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static float2 Mean(this float2[] vs)
     {
       float2 average = new float2();
@@ -274,6 +294,7 @@ namespace AM.Unity.Statistics
       return average / l;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector2 Mean(this Vector2[] vs)
     {
       Vector2 average = new Vector2();
@@ -286,6 +307,7 @@ namespace AM.Unity.Statistics
       return average / l;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static long Mean(this long[] vals)
     {
       long m = 0;
@@ -298,7 +320,9 @@ namespace AM.Unity.Statistics
       return m / l;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static float MmToMeters(this float f) => f / 1000f;
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static float MetersToMMs(this float f) => f * 1000f;
   }
 }

@@ -5,15 +5,15 @@ using UnityEngine.iOS;
 
 public static class ARUtil
 {
-    public static bool ARSupportedDevice()
-    {
-        // if(UAP_AccessibilityManager.IsEnabled())
-        // {
-        //     return false; // No AR when screenreader enabled
-        // }
+  public static bool ARSupportedDevice()
+  {
+    // if(UAP_AccessibilityManager.IsEnabled())
+    // {
+    //     return false; // No AR when screenreader enabled
+    // }
 
 #if UNITY_EDITOR
-        return false;
+    return false;
 #endif
 
 #if UNITY_ANDROID
@@ -58,11 +58,13 @@ public static class ARUtil
         Debug.Log($"ARUtil -> ARSupportedDevice() :: iOS device gen: {gen}");
         return true;
 #endif
-        return false;
-    }
+#pragma warning disable CS0162 // Unreachable code detected
+    return false;
+#pragma warning restore CS0162 // Unreachable code detected
+  }
 
-    public static bool FaceTrackingSupported()
-    {
+  public static bool FaceTrackingSupported()
+  {
 #if UNITY_IOS
         var gen =  Device.generation;
         if ((int)gen < (int)DeviceGeneration.iPhoneX || gen.ToString().ToLower().Contains("touch"))
@@ -73,14 +75,14 @@ public static class ARUtil
 
         return true;
 #else
-        bool supported = ARSupportedDevice();
-        Debug.Log($"ARUtil -> FaceTrackingSupported() :: Android :: Face tracking supported on device {supported}");
-        return supported;
+    bool supported = ARSupportedDevice();
+    Debug.Log($"ARUtil -> FaceTrackingSupported() :: Android :: Face tracking supported on device {supported}");
+    return supported;
 #endif
-    }
+  }
 
-    public static int GetOSVersion()
-    {
+  public static int GetOSVersion()
+  {
 #if UNITY_IOS
         Debug.Log("ARUtil -> GetOSVersion() :: iOS :: Device.systemVersion: " + Device.systemVersion);
         string[] ver = Device.systemVersion.Split('.');
@@ -91,9 +93,9 @@ public static class ARUtil
         else
             return -1;
 #else
-        var version = new AndroidJavaClass("android.os.Build$VERSION").GetStatic<int>("SDK_INT");
-        Debug.Log("ARUtil -> GetOSVersion() :: Android :: android.os.Build$VERSION: " + version);
-        return version;
+    var version = new AndroidJavaClass("android.os.Build$VERSION").GetStatic<int>("SDK_INT");
+    Debug.Log("ARUtil -> GetOSVersion() :: Android :: android.os.Build$VERSION: " + version);
+    return version;
 #endif
-    }
+  }
 }

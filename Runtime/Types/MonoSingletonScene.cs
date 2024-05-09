@@ -1,49 +1,73 @@
-using System;
 using System.Collections.Generic;
-using System.Runtime.CompilerServices;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
 public class MonoSingletonScene<T> : MonoBehaviour where T : Component
 {
-    static readonly Type _type = typeof(T);
-    static Dictionary<int, Dictionary<Type, object>> _instances = new Dictionary<int, Dictionary<Type, object>>();
+  private static readonly Dictionary<string, T> _instances = new Dictionary<string, T>();
+  private static readonly object _lock = new object(); // Synchronization lock object
 
-    public static T I(Scene scene)
+  public static T I(Scene scene)
+  {
+    string sceneName = scene.name;
+    lock (_lock)
     {
-        int sceneIndex = scene.buildIndex;
-
-        CheckInstance(sceneIndex);
-
-        if (_instances[sceneIndex][_type] != null)
-            return _instances[sceneIndex][_type] as T;
-
-        T i = null;
-#if UNITY_EDITOR
-        i = FindObjectOfType<T>();
-#endif
-        if (i == null)
-            i = new GameObject(typeof(T).Name).AddComponent<T>();
-
-        _instances[sceneIndex][_type] = i;
-
-        return i;
+      if (!_instances.ContainsKey(sceneName))
+      {
+        // Find the instance in the specified scene
+        T instance = FindInstanceInScene(scene);
+        if (instance == null)
+        {
+          // Create new instance if none was found
+          instance = new GameObject($"{typeof(T).Name} (Scene Singleton)").AddComponent<T>();
+          SceneManager.MoveGameObjectToScene(instance.gameObject, scene);
+        }
+        _instances[sceneName] = instance;
+      }
     }
 
-    public virtual void Awake()
+    return _instances[sceneName];
+  }
+
+  private static T FindInstanceInScene(Scene scene)
+  {
+    foreach (GameObject rootObj in scene.GetRootGameObjects())
     {
-        _instances = new Dictionary<int, Dictionary<Type, object>>();
-        CheckInstance(gameObject.scene.buildIndex, this);
+      T instance = rootObj.GetComponentInChildren<T>(true);
+      if (instance != null)
+      {
+        return instance;
+      }
     }
+    return null;
+  }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    static void CheckInstance(int sceneIndex, object instance = null)
+  protected virtual void Awake()
+  {
+    string sceneName = gameObject.scene.name;
+    lock (_lock)
     {
-        if (!_instances.ContainsKey(sceneIndex))
-            _instances.Add(sceneIndex, new Dictionary<Type, object>());
-
-        if (!_instances[sceneIndex].ContainsKey(_type))
-            _instances[sceneIndex].Add(_type, instance);
+      if (_instances.ContainsKey(sceneName) && _instances[sceneName] != this)
+      {
+        Debug.LogError($"Another instance of {typeof(T)} was attempted to be created in {sceneName}, which is not allowed.");
+        DestroyImmediate(gameObject);
+      }
+      else
+      {
+        _instances[sceneName] = this as T;
+      }
     }
+  }
 
+  protected virtual void OnDestroy()
+  {
+    string sceneName = gameObject.scene.name;
+    lock (_lock)
+    {
+      if (_instances.ContainsKey(sceneName) && _instances[sceneName] == this)
+      {
+        _instances.Remove(sceneName);
+      }
+    }
+  }
 }

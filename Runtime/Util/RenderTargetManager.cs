@@ -107,6 +107,17 @@ public class RenderTargetManager : MonoSingletonScene<RenderTargetManager>
       _lastFrame = Time.frameCount;
       return result;
     }
+
+    public bool Render(RenderTexture rtOut)
+    {
+      var currentRT = renderTexture;
+      renderTexture = rtOut;
+      PreRender();
+      var result = RenderToTexture(out rtOut);
+      PostRender();
+      renderTexture = currentRT;
+      return result;
+    }
   }
 
   [Serializable]

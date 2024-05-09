@@ -3,7 +3,6 @@ using System.Linq;
 using UnityEngine;
 using Unity.Mathematics;
 using System.Runtime.CompilerServices;
-using Microsoft.Win32;
 
 public static class Vector3Ext
 {

@@ -135,7 +135,7 @@ public static class RenderTextureExt
 
   public static RenderTexture GetTemporaryCopy(this RenderTexture rt) => RenderTexture.GetTemporary(rt.width, rt.height, rt.depth, rt.format);
 
-  public static Texture2D ToTexture2D(this RenderTexture rt, bool linear = true)
+  public static Texture2D ToTexture2D(this RenderTexture rt, bool linear)
   {
     Texture2D texture2D = new Texture2D(rt.width, rt.height, rt.ToTextureFormat(), rt.useMipMap, linear)
     {

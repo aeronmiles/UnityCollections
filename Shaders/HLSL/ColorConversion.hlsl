@@ -21,6 +21,112 @@ const float HCL_MAX_L = 0.530454533953517; // == exp(HCL_GAMMA / HCL_Y0) - 0.5
 const float3 HCY_WTS = float3(0.299, 0.587, 0.114);
 ///
 
+float3 gamma(float3 color, float gamma)
+{
+  const float blackThreshold = 0.0031308f;
+  const float whiteThreshold = 0.9961f;
+
+  float linearColorR = color.r * 12.92f;
+  float linearColorG = color.g * 12.92f;
+  float linearColorB = color.b * 12.92f;
+
+  float exponentialColorR = 1.055f * pow(color.r, 1.0f / gamma) - 0.055f;
+  float exponentialColorG = 1.055f * pow(color.g, 1.0f / gamma) - 0.055f;
+  float exponentialColorB = 1.055f * pow(color.b, 1.0f / gamma) - 0.055f;
+
+  float weightR = smoothstep(blackThreshold, whiteThreshold, color.r);
+  float weightG = smoothstep(blackThreshold, whiteThreshold, color.g);
+  float weightB = smoothstep(blackThreshold, whiteThreshold, color.b);
+
+  float correctedColorR = lerp(linearColorR, exponentialColorR, weightR);
+  float correctedColorG = lerp(linearColorG, exponentialColorG, weightG);
+  float correctedColorB = lerp(linearColorB, exponentialColorB, weightB);
+
+  return float3(correctedColorR, correctedColorG, correctedColorB);
+}
+
+float LINtoLUM(float3 color)
+{
+    return dot(color, float3(0.2126, 0.7152, 0.0722));
+}
+
+float3 RGBtoLINApprox(float3 rgb)
+{
+    return pow(rgb, 2.2);
+}
+
+// float3 RGBtoLIN(float3 rgb) 
+// {
+//     float3 linearColor;
+
+//     for (int i = 0; i < 3; i++) 
+//     {
+//         linearColor[i] = rgb[i] <= 0.0031308 ? 
+//                          12.92 * rgb[i] : 
+//                          1.055 * pow(rgb[i], 1.0 / 2.4) - 0.055;
+//     }
+
+//     return linearColor;
+// }
+
+float3 LINtoRGBApprox(float3 rgb)
+{
+    return pow(rgb, 0.4545454545454545);
+}
+
+// float3 LINtoRGB(float3 rgb) 
+// {
+//   float3 srgbColor;
+
+//   for (int i = 0; i < 3; i++)
+//   {
+//       srgbColor[i] = rgb[i] <= 0.04045 ? 
+//                      rgb[i] / 12.92 : 
+//                      pow((rgb[i] + 0.055) / 1.055, 2.4);
+//   }
+
+//   return srgbColor;
+// }
+
+float3 RGBtoLIN(float3 rgb) 
+{
+    float3 linearColor;
+
+    linearColor.r = rgb.r <= 0.0031308 ? 
+                      12.92 * rgb.r : 
+                      1.055 * pow(rgb.r, 1.0 / 2.4) - 0.055;
+
+    linearColor.g = rgb.g <= 0.0031308 ? 
+                      12.92 * rgb.g : 
+                      1.055 * pow(rgb.g, 1.0 / 2.4) - 0.055;
+
+    linearColor.b = rgb.b <= 0.0031308 ? 
+                      12.92 * rgb.b : 
+                      1.055 * pow(rgb.b, 1.0 / 2.4) - 0.055;
+
+  return linearColor;
+}
+
+float3 LINtoRGB(float3 rgb) 
+{
+  float3 srgbColor;
+
+  srgbColor.r = rgb.r <= 0.04045 ? 
+                  rgb.r / 12.92 : 
+                  pow((rgb.r + 0.055) / 1.055, 2.4);
+
+  srgbColor.g = rgb.g <= 0.04045 ? 
+                  rgb.g / 12.92 : 
+                  pow((rgb.g + 0.055) / 1.055, 2.4);
+
+  srgbColor.b = rgb.b <= 0.04045 ? 
+                  rgb.b / 12.92 : 
+                  pow((rgb.b + 0.055) / 1.055, 2.4);
+
+  return srgbColor;
+}
+
+
 // Conversion Matricies - You'll need to fill this with values based on your RGB primaries
 const float3x3 SRGB_TO_XYZ_MATRIX = float3x3(
     0.4124564, 0.3575761, 0.1804375,
@@ -296,7 +402,7 @@ float3 HCLtoRGB(in float3 HCL)
 
 float3 RGBtoHSV(float3 c)
 {
-    c = pow(c, 2.2); // Approximate gamma correction
+    c = RGBtoLIN(c);
 
     float4 K = float4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
     float4 p = lerp(float4(c.bg, K.wz), float4(c.gb, K.xy), step(c.b, c.g));
@@ -326,13 +432,14 @@ float3 HSVtoRGB(float3 c)
     // c = pow(c, 2.2); // Approximate gamma correction
     float4 K = float4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
     float3 p = abs(frac(c.xxx + K.xyz) * 6.0 - K.www);
-    return c.z * lerp(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
+    return c.z * lerp(K.xxx, saturate(p - K.xxx), c.y);
 }
 
 // Hue Rotated by +0.5
-float3 RGBtoHSV_Offset(float3 c, float hueOffset = 0.5)
+float3 RGBtoHSV_Offset(float3 c)
 {
-    c = pow(c, 2.2); // Approximate gamma correction
+    float hueOffset = 0.5;
+    c = RGBtoLIN(c);
 
     float4 K = float4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
     float4 p = lerp(float4(c.bg, K.wz), float4(c.gb, K.xy), step(c.b, c.g));
@@ -356,8 +463,9 @@ float3 RGBtoHSV_Offset(float3 c, float hueOffset = 0.5)
 }
 
 // Hue Rotated by +0.5
-float3 LINtoHSV_Offset(float3 c, float hueOffset = 0.5)
+float3 LINtoHSV_Offset(float3 c)
 {
+    float hueOffset = 0.5;
     // c = pow(c, 2.2); // Approximate gamma correction
 
     float4 K = float4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
@@ -383,8 +491,9 @@ float3 LINtoHSV_Offset(float3 c, float hueOffset = 0.5)
 
 // @TODO: lienar implementation
 // Hue Rotated by +0.5
-float3 HSVtoRGB_Offset(float3 c, float hueOffset = 0.5)
+float3 HSVtoRGB_Offset(float3 c)
 {
+    float hueOffset = 0.5;
     // c = pow(c, 2.2); // Approximate gamma correction
 
     float4 K = float4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
@@ -393,7 +502,7 @@ float3 HSVtoRGB_Offset(float3 c, float hueOffset = 0.5)
     float originalHue = (c.x + hueOffset) % 1.0; 
 
     float3 p = abs(frac(originalHue + K.xyz) * 6.0 - K.www);
-    return c.z * lerp(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
+    return c.z * lerp(K.xxx, saturate(p - K.xxx), c.y);
 }
 
 float3 RGBtoHSL(in float3 rgb)
@@ -417,20 +526,10 @@ float3 RGBtoHCY(in float3 rgb)
   return float3(hcv.x, hcv.y, Y);
 }
 
-float3 RGBtoLIN(float3 rgb)
-{
-    return pow(rgb, 2.2);
-}
-
-float3 LINtoRGB(float3 rgb)
-{
-    return pow(rgb, 0.4545454545454545);
-}
-
 float3 levels(float3 col, float lift, float gain, float shadowGamma, float highGamma)
 {
   col += lift;
-  float luminance = RGBtoHSV(col).z;
+  float luminance = LINtoLUM(col);
   col = lerp(pow(col, shadowGamma), pow(col, highGamma), luminance);
   float remappedLuminance = lerp(luminance, 1.0, gain * luminance / 1);
   col *= (remappedLuminance / luminance);
@@ -440,11 +539,20 @@ float3 levels(float3 col, float lift, float gain, float shadowGamma, float highG
 float4 levels(float4 col, float lift, float gain, float shadowGamma, float highGamma)
 {
   col.rgb += lift;
-  float luminance = RGBtoHSV(col.rgb).z;
+  float luminance = LINtoLUM(col.rgb);
   col.rgb = lerp(pow(col.rgb, shadowGamma), pow(col.rgb, highGamma), luminance);
-  float remappedLuminance = lerp(luminance, 1.0, gain * luminance / 1);
+  float remappedLuminance = luminance + gain * (1.0 - luminance);
   col.rgb *= (remappedLuminance / luminance);
   return col;
+}
+
+float3 highlightCompression(float3 color, float threshold, float compression) {
+  // 1. Isolate Highlights:
+  float luminance = LINtoLUM(color); // Calculate luminance
+  float highlight = smoothstep(threshold, 1.0, luminance); 
+  // 2. Compress Highlights:
+  color = lerp(color, 1.0 - exp(-color), highlight * compression);
+  return color;
 }
 
 //

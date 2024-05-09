@@ -1,13 +1,15 @@
-Shader "AM/Unlit/LowPass_SS"
+Shader "AM/Unlit/Contrast"
 {
     Properties
     {
         _MainTex ("Texture", 2D) = "white" {}
-        _KernelSize ("KernelSize", Int) = 5 // should be odd
+        _Contrast ("Contrast", Range(0.0001, 0.49999)) = 1
+        _Offset ("Offset", Range(-1, 1)) = 0
     }
     SubShader
     {
         Tags { "RenderType"="Opaque" }
+        ZTest Always
         LOD 100
 
         Pass
@@ -17,8 +19,6 @@ Shader "AM/Unlit/LowPass_SS"
             #pragma fragment frag
 
             #include "UnityCG.cginc"
-            #include "Assets/UnityCollections/Shaders/HLSL/Common.hlsl"
-            #include "Assets/UnityCollections/Shaders/HLSL/Filters.hlsl"
 
             struct appdata
             {
@@ -28,30 +28,28 @@ Shader "AM/Unlit/LowPass_SS"
 
             struct v2f
             {
-                float4 vertex : SV_POSITION;
                 float2 uv : TEXCOORD0;
+                float4 vertex : SV_POSITION;
             };
-            // GLOBALS
-            float _GLB_ScreenUV_Rotation;
-            
+
             sampler2D _MainTex;
             float4 _MainTex_ST;
-            float2 _MainTex_TexelSize;            
-            int _KernelSize;
+            float _Contrast, _Offset;
 
             v2f vert (appdata v)
             {
                 v2f o;
                 o.vertex = UnityObjectToClipPos(v.vertex);
-                o.uv = uvScreen(o.vertex, _GLB_ScreenUV_Rotation);
+                o.uv = TRANSFORM_TEX(v.uv, _MainTex);
                 return o;
             }
 
             fixed4 frag (v2f i) : SV_Target
             {
-                // make kernel odd
-                int kernel = _KernelSize & 1;
-                return lowPass(_MainTex, i.uv, _MainTex_TexelSize, kernel);
+                // sample the texture
+                fixed4 col = tex2D(_MainTex, i.uv);
+                col = smoothstep(_Contrast, 1 - _Contrast, col + _Offset);
+                return col;
             }
             ENDCG
         }

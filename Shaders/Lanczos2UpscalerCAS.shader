@@ -3,7 +3,11 @@ Shader "AM/Sampling/Lanczos2UpscalerCAS"
     Properties
     {
         _MainTex ("Texture", 2D) = "white" {}
-        _CASLevel ("CAS Level", Range(0, 1)) = 0.5
+        _CASLevel ("CAS Level", Range(0, 1)) = 0.5  
+        _Lift ("Lift", Range(-1, 1)) = 0.0
+        _GammaShadows ("Gamma Shadows", Range(0, 3)) = 1.0
+        _GammaHighlights ("Gamma Highlights", Range(0, 3)) = 1.0
+        _Gain ("Gain", Range(-2, 2)) = 0.0
     }
     SubShader
     {
@@ -16,6 +20,7 @@ Shader "AM/Sampling/Lanczos2UpscalerCAS"
             #pragma vertex vert
             #pragma fragment frag
             #include "UnityCG.cginc"
+            #include "HLSL/ColorConversion.hlsl"
 
             struct appdata
             {
@@ -30,8 +35,9 @@ Shader "AM/Sampling/Lanczos2UpscalerCAS"
             };
 
             sampler2D _MainTex;
+            sampler3D _LutTex;
             float4 _MainTex_TexelSize;
-            float _CASLevel;
+            float _CASLevel, _LutAmount, _Lift, _GammaShadows, _GammaHighlights, _Gain;
 
             v2f vert (appdata v)
             {
@@ -120,6 +126,13 @@ Shader "AM/Sampling/Lanczos2UpscalerCAS"
 
                 float3 col_out = (col + colw * A) / (1.0 + 4.0 * A);
 
+                float3 lutColor = col_out;
+                lutColor = float4(sampleCubeLUT(_LutTex, col_out.rgb), 1.0);
+                col_out = lerp(col_out, lutColor, _LutAmount);
+                
+                // Levels
+                // col_out = LINtoRGB(levels(RGBtoLIN(col_out), _Lift, _Gain, _GammaShadows, _GammaHighlights));
+                // col_out = pow(col_out, 1.0 / _GLB_Gamma);
                 return fixed4(col_out, 1.0);
             }
             ENDCG
