@@ -1,5 +1,6 @@
 using System.Collections;
 using System.IO;
+using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.Rendering;
 
@@ -164,8 +165,8 @@ public static class TextureExt
   {
     int sourceWidth = sourceTex.width;
     int sourceHeight = sourceTex.height;
-    var rt = RenderTexture.GetTemporary(sourceWidth, sourceHeight, 32, format);
 
+    var rt = RenderTexture.GetTemporary(sourceWidth, sourceHeight, 0, format);
     RenderTexture.active = rt;
     GL.Clear(true, true, Color.black);
 
@@ -175,15 +176,19 @@ public static class TextureExt
     else
       Graphics.Blit(sourceTex, rt);
 
-    // Calculate offsets for positioning the blit in the center
-    var scale = new Vector2(texOut.width / (float)texOut.height, texOut.height / (float)sourceHeight);
-    var offset = new Vector2(-(1f - (sourceWidth / (float)texOut.width)), -(1f - (sourceHeight / (float)texOut.height)));
+    float scaleX = (float)texOut.width / sourceTex.width;
+    float scaleY = (float)texOut.height / sourceTex.height;
+    float minScale = Mathf.Min(scaleX, scaleY); // Ensures the  source texture fits entirely within texOut
 
-    var texRT = RenderTexture.GetTemporary(texOut.width, texOut.height, 32, format);
-    // Copy from the render texture to the target texture
-    Graphics.Blit(rt, texRT, scale, offset);
+    // Calculate offsets to center the scaled source texture within texOut
+    float offsetX = (texOut.width - (sourceTex.width * minScale)) * 0.5f;
+    float offsetY = (texOut.height - (sourceTex.height * minScale)) * 0.5f;
+
+    var texRT = RenderTexture.GetTemporary(texOut.width, texOut.height, 0, format);
+    Graphics.Blit(rt, texRT);
+
     RenderTexture.active = texRT;
-    texOut.ReadPixels(new Rect(0, 0, texOut.width, texOut.height), 0, 0, false);
+    texOut.ReadPixels(new Rect(0, 0, sourceTex.width * minScale, sourceTex.height * minScale), 0, 0, false);
     texOut.Apply(mipChains);
 
     // Clean up
@@ -192,6 +197,8 @@ public static class TextureExt
     RenderTexture.ReleaseTemporary(texRT);
   }
 
+
+  // @TODO: vlidate & test
   public static void BlitToTexCentreFitted(this Texture sourceTex, Texture2D texOut, Material mat = null, RenderTextureFormat format = RenderTextureFormat.ARGBHalf, bool mipChains = false)
   {
     int sourceWidth = sourceTex.width;
@@ -216,7 +223,7 @@ public static class TextureExt
       scale = destHeight / (float)sourceHeight;
     }
 
-    var rt = RenderTexture.GetTemporary(sourceWidth, sourceHeight, 32, format);
+    var rt = RenderTexture.GetTemporary(sourceWidth, sourceHeight, 0, format);
 
     RenderTexture.active = rt;
     GL.Clear(true, true, Color.black);
@@ -228,7 +235,7 @@ public static class TextureExt
       Graphics.Blit(sourceTex, rt);
 
     // Create a new temporary RenderTexture where we will draw the source texture centered
-    var texRT = RenderTexture.GetTemporary(destWidth, destHeight, 32, format);
+    var texRT = RenderTexture.GetTemporary(destWidth, destHeight, 0, format);
     RenderTexture.active = texRT;
     GL.Clear(true, true, Color.black); // Optional: Clear with black color
 
@@ -262,7 +269,7 @@ public static class TextureExt
   {
     int w = texOut.width;
     int h = texOut.height;
-    var rt = RenderTexture.GetTemporary(w, h, 32, sourceTex.graphicsFormat);
+    var rt = RenderTexture.GetTemporary(w, h, 0, sourceTex.graphicsFormat);
     var cachedRT = RenderTexture.active;
 
     RenderTexture.active = rt;
