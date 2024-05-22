@@ -13,31 +13,35 @@ namespace AM.Unity.Statistics
   public static class StatisticsExt
   {
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    [BurstCompile]
     public static MeanMedianVarMinMaxFloat3 ToMeanMedianVarMinMax(this IEnumerable<Color> colors)
     {
-      var floats = colors.ToFloat3();
+      var floats = colors.ToNativeArrayFloat3();
       var mean = floats.Mean();
       MeanMedianVarMinMaxFloat3 mmv = new MeanMedianVarMinMaxFloat3
       {
         mean = mean,
-        median = floats.Median(),
+        median = floats.MedianXYZ(),
         variance = floats.Variance(mean),
         min = floats.Min(),
         max = floats.Max()
       };
 
+      floats.Dispose();
+
       return mmv;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    [BurstCompile]
     public static MeanMedianVarMinMaxFloat3 ToMeanMedianVarMinMax(this NativeArray<Color> colors)
     {
-      var floats = colors.ToFloat3();
+      var floats = colors.ToNativeFloat3();
       var mean = floats.Mean();
       MeanMedianVarMinMaxFloat3 mmv = new MeanMedianVarMinMaxFloat3
       {
         mean = mean,
-        median = floats.Median(),
+        median = floats.MedianXYZ(),
         variance = floats.Variance(mean),
         min = floats.Min(),
         max = floats.Max()
@@ -48,6 +52,7 @@ namespace AM.Unity.Statistics
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    [BurstCompile]
     public static List<float> Errors(this IEnumerable<float> values, float referenceValue)
     {
       List<float> errors = values.ToList();
@@ -60,6 +65,7 @@ namespace AM.Unity.Statistics
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    [BurstCompile]
     public static float3 Mean(this IEnumerable<float3> float3s)
     {
       float3 m = new float3();
@@ -72,6 +78,7 @@ namespace AM.Unity.Statistics
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    [BurstCompile]
     public static float Mean(this IEnumerable<float> floats)
     {
       float m = 0f;
@@ -84,6 +91,7 @@ namespace AM.Unity.Statistics
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    [BurstCompile]
     public static float3 Min(this IEnumerable<float3> float3s)
     {
       float3 m = new float3(float.MaxValue, float.MaxValue, float.MaxValue);
@@ -98,6 +106,7 @@ namespace AM.Unity.Statistics
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    [BurstCompile]
     public static float Min(this IEnumerable<float> floats)
     {
       float m = float.MaxValue;
@@ -110,6 +119,7 @@ namespace AM.Unity.Statistics
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    [BurstCompile]
     public static float3 Max(this IEnumerable<float3> float3s)
     {
       float3 m = new float3(float.MinValue, float.MinValue, float.MinValue);
@@ -124,6 +134,7 @@ namespace AM.Unity.Statistics
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    [BurstCompile]
     public static float Max(this IEnumerable<float> floats)
     {
       float m = float.MinValue;
@@ -136,29 +147,95 @@ namespace AM.Unity.Statistics
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static float Median(this NativeArray<float> floats)
+    [BurstCompile]
+    public static float Median(this NativeArray<float> floats, bool sortInPlace)
     {
-      floats.SortInPlace();
+      NativeArray<float> sortedValues;
       int l = floats.Length;
+      if (sortInPlace)
+      {
+        sortedValues = floats;
+        sortedValues.SortInPlace();
+      }
+      else
+      {
+        using (sortedValues = new NativeArray<float>(floats.Length, Allocator.Temp))
+        {
+          for (int i = 0; i < l; i++)
+          {
+            sortedValues[i] = floats[i];
+          }
+          sortedValues.SortInPlace();
+        }
+      }
       float median;
       int mid = l / 2;
-      median = (l % 2 != 0) ? floats[mid] : (floats[mid] + floats[mid - 1]) / 2;
+      median = (l % 2 != 0) ? sortedValues[mid] : (sortedValues[mid] + sortedValues[mid - 1]) / 2;
 
       return median;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     [BurstCompile]
-    public static float3 Median(this IEnumerable<float3> float3s)
+    public static float3 MedianXYZ(this NativeArray<float3> float3s)
     {
-      var median = new float3();
-      int l = 0;
-      foreach (var f in float3s)
+      int l = float3s.Count();
+      float3s.XValues(out var xValues);
+      float3s.XValues(out var yValues);
+      float3s.XValues(out var zValues);
+      xValues.SortInPlace();
+      yValues.SortInPlace();
+      zValues.SortInPlace();
+
+      int mid = l / 2;
+      float3 median = new float3
       {
-        l++;
-        median += f;
+        x = (l % 2 != 0) ? xValues[mid] : (xValues[mid] + xValues[mid - 1]) / 2,
+        y = (l % 2 != 0) ? yValues[mid] : (yValues[mid] + yValues[mid - 1]) / 2,
+        z = (l % 2 != 0) ? zValues[mid] : (zValues[mid] + zValues[mid - 1]) / 2
+      };
+
+      xValues.Dispose();
+      yValues.Dispose();
+      zValues.Dispose();
+
+      return median;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    [BurstCompile]
+    public static void XValues(this NativeArray<float3> float3s, out NativeArray<float> xValues)
+    {
+      int l = float3s.Length;
+      xValues = new NativeArray<float>(l, Allocator.Temp);
+      for (int i = 0; i < l; i++)
+      {
+        xValues[i] = float3s[i].x;
       }
-      return median / l;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    [BurstCompile]
+    public static void YValues(this NativeArray<float3> float3s, out NativeArray<float> yValues)
+    {
+      int l = float3s.Length;
+      yValues = new NativeArray<float>(l, Allocator.Temp);
+      for (int i = 0; i < l; i++)
+      {
+        yValues[i] = float3s[i].y;
+      }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    [BurstCompile]
+    public static void ZValues(this NativeArray<float3> float3s, out NativeArray<float> zValues)
+    {
+      int l = float3s.Length;
+      zValues = new NativeArray<float>(l, Allocator.Temp);
+      for (int i = 0; i < l; i++)
+      {
+        zValues[i] = float3s[i].z;
+      }
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -239,6 +316,7 @@ namespace AM.Unity.Statistics
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    [BurstCompile]
     private static float2 Quartiles(this IEnumerable<float> data)
     {
       float2 quartiles = new float2();
@@ -255,6 +333,7 @@ namespace AM.Unity.Statistics
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    [BurstCompile]
     public static MeanMedianVarMinMax ToMeanMedianVarMinMax(this IEnumerable<float> floats)
     {
       float mean = floats.Mean();
@@ -271,6 +350,7 @@ namespace AM.Unity.Statistics
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    [BurstCompile]
     public static float2 Mean(this float2[] vs)
     {
       float2 average = new float2();
@@ -284,6 +364,7 @@ namespace AM.Unity.Statistics
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    [BurstCompile]
     public static Vector2 Mean(this Vector2[] vs)
     {
       Vector2 average = new Vector2();
@@ -297,6 +378,7 @@ namespace AM.Unity.Statistics
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    [BurstCompile]
     public static long Mean(this long[] vals)
     {
       long m = 0;
@@ -310,8 +392,10 @@ namespace AM.Unity.Statistics
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    [BurstCompile]
     public static float MmToMeters(this float f) => f / 1000f;
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    [BurstCompile]
     public static float MetersToMMs(this float f) => f * 1000f;
   }
 }

@@ -57,7 +57,7 @@ public static class NativeArrayExt
       arr.Quicksort(pivotIndex + 1, right);
     }
   }
-  
+
   [BurstCompile]
   public static void Quicksort(this NativeArray<float> arr, int left, int right)
   {

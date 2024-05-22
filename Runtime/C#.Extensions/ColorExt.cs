@@ -1,5 +1,7 @@
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.CompilerServices;
+using Unity.Burst;
 using Unity.Collections;
 using Unity.Mathematics;
 using UnityEngine;
@@ -7,6 +9,7 @@ using UnityEngine;
 public static class ColorExt
 {
   [MethodImpl(MethodImplOptions.AggressiveInlining)]
+  [BurstCompile]
   public static IEnumerable<float3> ToFloat3(this IEnumerable<Color> colors)
   {
     foreach (var c in colors)
@@ -16,7 +19,21 @@ public static class ColorExt
   }
 
   [MethodImpl(MethodImplOptions.AggressiveInlining)]
-  public static NativeArray<float3> ToFloat3(this NativeArray<Color> colors)
+  [BurstCompile]
+  public static NativeArray<float3> ToNativeArrayFloat3(this IEnumerable<Color> colors)
+  {
+    var floats = new NativeArray<float3>(colors.Count(), Allocator.Temp);
+    int i = 0;
+    foreach (var c in colors)
+    {
+      floats[i++] = new float3(c.r, c.g, c.b);
+    }
+    return floats;
+  }
+
+  [MethodImpl(MethodImplOptions.AggressiveInlining)]
+  [BurstCompile]
+  public static NativeArray<float3> ToNativeFloat3(this NativeArray<Color> colors)
   {
     var floats = new NativeArray<float3>(colors.Length, Allocator.Temp);
     for (int i = 0; i < colors.Length; i++)
@@ -27,12 +44,14 @@ public static class ColorExt
   }
 
   [MethodImpl(MethodImplOptions.AggressiveInlining)]
+  [BurstCompile]
   public static Vector3 rgb(this Color c)
   {
     return new Vector3(c.r, c.g, c.b);
   }
 
   [MethodImpl(MethodImplOptions.AggressiveInlining)]
+  [BurstCompile]
   public static Vector3[] ToRGB(this Color[] cs)
   {
     int l = cs.Length;
@@ -45,18 +64,21 @@ public static class ColorExt
   }
 
   [MethodImpl(MethodImplOptions.AggressiveInlining)]
+  [BurstCompile]
   public static Color32 Divide(this Color32 v, Color32 vx)
   {
     return new Color32((byte)(v.r / vx.r), (byte)(v.g / vx.g), (byte)(v.b / vx.b), (byte)(v.a / vx.a));
   }
 
   [MethodImpl(MethodImplOptions.AggressiveInlining)]
+  [BurstCompile]
   public static Color Divide(this Color v, Color vx)
   {
     return new Color(v.r / vx.r, v.g / vx.g, v.b / vx.b, v.a / vx.a);
   }
 
   [MethodImpl(MethodImplOptions.AggressiveInlining)]
+  [BurstCompile]
   public static float[] ToGrayscale(this Color[] cs)
   {
     int l = cs.Length;
