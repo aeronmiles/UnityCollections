@@ -1,24 +1,31 @@
-using System;
+using Unity.Burst;
 using Unity.Collections;
-using Unity.Mathematics;
 
 public static class NativeArrayExt
 {
   [BurstCompile]
-  public static float CalculateMedian(this NativeArray<float> values, int count)
+  public static float CalculateMedian(this NativeArray<float> values, int count, bool sortInPlace = false)
   {
     if (count == 0)
     {
       return 0f;
     }
 
-    // Sort the values using a Burst-compatible sorting algorithm
-    NativeArray<float> sortedValues = new NativeArray<float>(count, Allocator.Temp);
-    for (int i = 0; i < count; i++)
+    NativeArray<float> sortedValues;
+    if (sortInPlace)
     {
-      sortedValues[i] = values[i];
+      sortedValues = values;
     }
-    sortedValues.Quicksort();
+    else
+    {
+      // Sort the values using a Burst-compatible sorting algorithm
+      sortedValues = new NativeArray<float>(count, Allocator.Temp);
+      for (int i = 0; i < count; i++)
+      {
+        sortedValues[i] = values[i];
+      }
+      sortedValues.Quicksort();
+    }
 
     // Calculate the median
     float median;
@@ -50,6 +57,7 @@ public static class NativeArrayExt
       arr.Quicksort(pivotIndex + 1, right);
     }
   }
+  
   [BurstCompile]
   public static void Quicksort(this NativeArray<float> arr, int left, int right)
   {
@@ -88,62 +96,20 @@ public static class NativeArrayExt
     arr[j] = temp;
   }
 
-  public static NativeArray<float> Sort(this NativeArray<float> array)
+  [BurstCompile]
+  public static void SortInPlace(this NativeArray<float> array)
   {
-    NativeArray<float> sorted = new NativeArray<float>(array.Length, Allocator.Temp);
     for (int i = 0; i < array.Length; i++)
     {
-      sorted[i] = array[i];
-    }
-    for (int i = 0; i < sorted.Length; i++)
-    {
-      for (int j = i + 1; j < sorted.Length; j++)
+      for (int j = i + 1; j < array.Length; j++)
       {
-        if (sorted[i] > sorted[j])
+        if (array[i] > array[j])
         {
-          float temp = sorted[i];
-          sorted[i] = sorted[j];
-          sorted[j] = temp;
+          float temp = array[i];
+          array[i] = array[j];
+          array[j] = temp;
         }
       }
     }
-    return sorted;
   }
-
-  public static NativeArray<float> XValues(this NativeArray<float3> array)
-  {
-    int l = array.Length;
-    NativeArray<float> xValues = new NativeArray<float>(l, Allocator.Temp);
-    for (int i = 0; i < l; i++)
-    {
-      xValues[i] = array[i].x;
-    }
-    return xValues;
-  }
-
-  public static NativeArray<float> YValues(this NativeArray<float3> array)
-  {
-    int l = array.Length;
-    NativeArray<float> yValues = new NativeArray<float>(l, Allocator.Temp);
-    for (int i = 0; i < l; i++)
-    {
-      yValues[i] = array[i].y;
-    }
-    return yValues;
-  }
-
-  public static NativeArray<float> ZValues(this NativeArray<float3> array)
-  {
-    int l = array.Length;
-    NativeArray<float> zValues = new NativeArray<float>(l, Allocator.Temp);
-    for (int i = 0; i < l; i++)
-    {
-      zValues[i] = array[i].z;
-    }
-    return zValues;
-  }
-}
-
-internal class BurstCompileAttribute : Attribute
-{
 }

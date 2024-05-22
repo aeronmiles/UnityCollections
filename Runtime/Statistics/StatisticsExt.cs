@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using Unity.Burst;
 using Unity.Collections;
 using Unity.Mathematics;
 using UnityEngine;
@@ -137,45 +138,31 @@ namespace AM.Unity.Statistics
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static float Median(this NativeArray<float> floats)
     {
-      var sorted = floats.Sort();
-      int l = sorted.Length;
+      floats.SortInPlace();
+      int l = floats.Length;
       float median;
       int mid = l / 2;
-      median = (l % 2 != 0) ? sorted[mid] : (sorted[mid] + sorted[mid - 1]) / 2;
-      sorted.Dispose();
+      median = (l % 2 != 0) ? floats[mid] : (floats[mid] + floats[mid - 1]) / 2;
 
       return median;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static float3 Median(this NativeArray<float3> float3s)
-    {
-      var xVals = float3s.XValues();
-      var yVals = float3s.YValues();
-      var zVals = float3s.ZValues();
-      var median = new float3(
-        xVals.Median(),
-        yVals.Median(),
-        zVals.Median()
-      );
-      xVals.Dispose();
-      yVals.Dispose();
-      zVals.Dispose();
-      return median;
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    [BurstCompile]
     public static float3 Median(this IEnumerable<float3> float3s)
     {
-      var median = new float3(
-        float3s.Select(f => f.x).Median(),
-        float3s.Select(f => f.y).Median(),
-        float3s.Select(f => f.z).Median()
-      );
-      return median;
+      var median = new float3();
+      int l = 0;
+      foreach (var f in float3s)
+      {
+        l++;
+        median += f;
+      }
+      return median / l;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    [BurstCompile]
     public static float Median(this IEnumerable<float> floats)
     {
       int l = floats.Count();
@@ -205,6 +192,7 @@ namespace AM.Unity.Statistics
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    [BurstCompile]
     public static float Squared(this float f) => math.sqrt(f);
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -229,6 +217,7 @@ namespace AM.Unity.Statistics
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    [BurstCompile]
     public static float Variance(this IEnumerable<float> floats, float mean)
     {
       int l = 0;
