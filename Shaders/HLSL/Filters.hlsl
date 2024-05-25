@@ -3,6 +3,8 @@
 #define __FILTERS__903NF19NC1035NF9F1__
 #include "Common.hlsl"
 
+
+
 float4 lowPass(sampler2D tex, float2 uv, float2 texelSize, float kernelSize) : SV_Target
 {
     // Calculate half kernel size, ensuring integer

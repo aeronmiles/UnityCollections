@@ -32,7 +32,7 @@ void CalculateHSVBoundsSingleThreaded(uint3 id : SV_DispatchThreadID) {
             color.rgb = pow(color.rgb, _Gamma);
 
             // Convert to HSV
-            float3 hsv = RGBtoHSV(color.rgb);
+            float3 hsv = RGBtoHSV_Offset(color.rgb);
             hSum += hsv.x;
             sSum += hsv.y;
             vSum += hsv.z;

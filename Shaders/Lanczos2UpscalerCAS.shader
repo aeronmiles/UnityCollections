@@ -12,6 +12,7 @@ Shader "AM/Sampling/Lanczos2UpscalerCAS"
     SubShader
     {
         Tags { "RenderType"="Opaque" }
+        ZWrite Off
         LOD 100
 
         Pass

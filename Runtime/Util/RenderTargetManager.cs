@@ -32,12 +32,14 @@ public class RenderTargetManager : MonoSingletonScene<RenderTargetManager>
 
   public bool Render(string id, out RenderTexture rtOut)
   {
-    var rt = Array.Find(_renderTargets, rt => rt.id == id);
-    if (rt != null)
+    foreach (var r in _renderTargets)
     {
-      return rt.Render(out rtOut);
+      if (r.id == id)
+      {
+        return r.Render(out rtOut);
+      }
     }
-    rtOut = new RenderTexture(1, 1, 24);
+    rtOut = null;
     return false;
   }
 

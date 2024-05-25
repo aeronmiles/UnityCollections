@@ -81,13 +81,13 @@ namespace AM.Unity.Statistics
     [BurstCompile]
     public static float Mean(this IEnumerable<float> floats)
     {
-      float m = 0f;
+      double m = 0f;
       foreach (var v in floats)
       {
         m += v;
       }
 
-      return m / floats.Count();
+      return (float)(m / floats.Count());
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
