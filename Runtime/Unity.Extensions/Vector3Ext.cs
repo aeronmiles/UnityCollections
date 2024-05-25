@@ -46,16 +46,10 @@ public static class Vector3Ext
   }
 
   [MethodImpl(MethodImplOptions.AggressiveInlining)]
-  public static Vector3 Random(this Vector3 v, float min = -1f, float max = 1f)
-  {
-    return new Vector3(UnityEngine.Random.Range(min, max), UnityEngine.Random.Range(min, max), UnityEngine.Random.Range(min, max));
-  }
+  public static Vector3 Random(this Vector3 v, float min = -1f, float max = 1f) => new Vector3(UnityEngine.Random.Range(min, max), UnityEngine.Random.Range(min, max), UnityEngine.Random.Range(min, max));
 
   [MethodImpl(MethodImplOptions.AggressiveInlining)]
-  public static Vector3 ToVector3(this float value)
-  {
-    return new Vector3(value, value, value);
-  }
+  public static Vector3 ToVector3(this float value) => new Vector3(value, value, value);
 
   [MethodImpl(MethodImplOptions.AggressiveInlining)]
   public static int ClosestIndex(this Vector3 v, Vector3[] vs)
@@ -199,16 +193,10 @@ public static class Vector3Ext
   }
 
   [MethodImpl(MethodImplOptions.AggressiveInlining)]
-  public static Vector3 Divide(this Vector3 v, Vector3 vx)
-  {
-    return new Vector3(v.x / vx.x, v.y / vx.y, v.z / vx.z);
-  }
+  public static Vector3 Divide(this Vector3 v, Vector3 vx) => new Vector3(v.x / vx.x, v.y / vx.y, v.z / vx.z);
 
   [MethodImpl(MethodImplOptions.AggressiveInlining)]
-  public static Vector3 Multiply(this Vector3 v, Vector3 vx)
-  {
-    return new Vector3(v.x * vx.x, v.y * vx.y, v.z * vx.z);
-  }
+  public static Vector3 Multiply(this Vector3 v, Vector3 vx) => new Vector3(v.x * vx.x, v.y * vx.y, v.z * vx.z);
 
   [MethodImpl(MethodImplOptions.AggressiveInlining)]
   public static Vector3[] Multiply(this Vector3[] vs, Vector3 v)
@@ -223,10 +211,7 @@ public static class Vector3Ext
   }
 
   [MethodImpl(MethodImplOptions.AggressiveInlining)]
-  public static Vector3 Round(this Vector3 v, int decimals = 0)
-  {
-    return new Vector3(v.x.Round(decimals), v.y.Round(decimals), v.z.Round(decimals));
-  }
+  public static Vector3 Round(this Vector3 v, int decimals = 0) => new Vector3(v.x.Round(decimals), v.y.Round(decimals), v.z.Round(decimals));
 
   [MethodImpl(MethodImplOptions.AggressiveInlining)]
   public static Vector3[] ToNearest(this Vector3[] vs, Vector3 step)
@@ -257,8 +242,5 @@ public static class Vector3Ext
   }
 
   [MethodImpl(MethodImplOptions.AggressiveInlining)]
-  public static Quaternion ToQuaternion(this Vector3 v)
-  {
-    return Quaternion.Euler(v.x, v.y, v.z);
-  }
+  public static Quaternion ToQuaternion(this Vector3 v) => Quaternion.Euler(v.x, v.y, v.z);
 }
