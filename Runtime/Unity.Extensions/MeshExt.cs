@@ -30,32 +30,21 @@ public static class MeshExt
   }
 
   [MethodImpl(MethodImplOptions.AggressiveInlining)]
-  public static Vector3 NormalsAveraged(this Mesh mesh, int[] indices)
+  public static Vector3 NormalsAveraged(this Mesh mesh, int[] indices, int meshDataIndex)
   {
     // @TODO: remove memory allocations
     using (var meshData = Mesh.AcquireReadOnlyMeshData(mesh))  // Request index 0 for vertex data
     {
-      var mesh0 = meshData[0];
+      var mesh0 = meshData[meshDataIndex];
       NativeArray<Vector3> normals = new NativeArray<Vector3>(mesh0.vertexCount, Allocator.Temp);
-      meshData[0].GetNormals(normals);
-      Vector3 allNormals = Vector3.zero;
+      meshData[meshDataIndex].GetNormals(normals);
+      Vector3 indexNormals = Vector3.zero;
       for (int i = 0; i < indices.Length; i++)
       {
-        allNormals += normals[indices[i]];
+        indexNormals += normals[indices[i]];
       }
       normals.Dispose();
-      return allNormals.normalized;
+      return indexNormals.normalized;
     } // MeshData is released automatically here
-    // using (var meshData = Mesh.AcquireReadOnlyMeshData(mesh))  // Request index 0 for vertex data
-    // {
-    //   var mesh0 = meshData[0];
-    //   NativeArray<Vector3> normals = mesh0.GetVertexData<Vector3>(mesh0.GetVertexAttributeStream(UnityEngine.Rendering.VertexAttribute.Normal));
-    //   Vector3 averageNormal = Vector3.zero;
-    //   foreach (var index in indicies)
-    //   {
-    //     averageNormal += normals[index];
-    //   }
-    //   return averageNormal.normalized;
-    // } // MeshData is released automatically here
   }
 }

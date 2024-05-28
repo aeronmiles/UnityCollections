@@ -77,10 +77,6 @@ public class RenderTargetManager : MonoSingletonScene<RenderTargetManager>
 
     public virtual void OnValidate()
     {
-      if (blitMaterial != null)
-      {
-        Debug.LogWarning("Blit materials array length is greater than 1. Minimize to 1 for performance.");
-      }
       if (camera == null)
       {
         camera = Camera.main;
