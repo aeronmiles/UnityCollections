@@ -133,7 +133,7 @@ Shader "AM/Sampling/Lanczos2UpscalerCAS"
                 
                 // Levels
                 // col_out = LINtoRGB(levels(RGBtoLIN(col_out), _Lift, _Gain, _GammaShadows, _GammaHighlights));
-                // col_out = pow(col_out, 1.0 / _GLB_Gamma);
+                // col_out = pow(col_out, 1.0 / _GLOBAL_Gamma);
                 return fixed4(col_out, 1.0);
             }
             ENDCG

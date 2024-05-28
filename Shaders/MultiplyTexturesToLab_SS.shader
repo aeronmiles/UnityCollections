@@ -36,7 +36,7 @@ Shader "AM/Image Processing/MultiplyTexturesToLab_SS"
                 float4 vertex : SV_POSITION;
             };
 
-            // float _GLB_Gamma;
+            // float _GLOBAL_Gamma;
 
             sampler2D _MainTex;
             float4 _MainTex_ST;

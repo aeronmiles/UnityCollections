@@ -38,7 +38,7 @@ Shader "AM/Image Processing/MultiplyTexturesToHSV_SS"
             };
 
             // GLOBALS
-            float _GLB_ScreenUV_Rotation;
+            float _GLOBAL_ScreenUV_Rotation;
 
             sampler2D _MainTex;
             sampler3D _LutTex;
@@ -52,7 +52,7 @@ Shader "AM/Image Processing/MultiplyTexturesToHSV_SS"
                 v2f o;
                 o.vertex = UnityObjectToClipPos(v.vertex);
                 o.uv = TRANSFORM_TEX(v.uv, _MainTex);
-                o.uvScreen = uvScreen(o.vertex, _GLB_ScreenUV_Rotation);
+                o.uvScreen = uvScreen(o.vertex, _GLOBAL_ScreenUV_Rotation);
                 // o.uvScreen.y = 1 - o.uvScreen.y;
 
                 return o;

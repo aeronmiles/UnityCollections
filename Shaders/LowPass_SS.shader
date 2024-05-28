@@ -32,7 +32,7 @@ Shader "AM/Unlit/LowPass_SS"
                 float2 uv : TEXCOORD0;
             };
             // GLOBALS
-            float _GLB_ScreenUV_Rotation;
+            float _GLOBAL_ScreenUV_Rotation;
             
             sampler2D _MainTex;
             float4 _MainTex_ST;
@@ -43,7 +43,7 @@ Shader "AM/Unlit/LowPass_SS"
             {
                 v2f o;
                 o.vertex = UnityObjectToClipPos(v.vertex);
-                o.uv = uvScreen(o.vertex, _GLB_ScreenUV_Rotation);
+                o.uv = uvScreen(o.vertex, _GLOBAL_ScreenUV_Rotation);
                 return o;
             }
 

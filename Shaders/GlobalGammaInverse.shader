@@ -32,7 +32,7 @@ Shader "AM/Unlit/GlobalGammaInverse"
 
             sampler2D _MainTex;
             float4 _MainTex_ST;
-            float _GLB_Gamma;
+            float _GLOBAL_Gamma;
 
             v2f vert (appdata v)
             {
@@ -46,7 +46,7 @@ Shader "AM/Unlit/GlobalGammaInverse"
             {
                 // sample the texture
                 fixed4 col = tex2D(_MainTex, i.uv);
-                col.rgb = pow(col.rgb, 1.0 / _GLB_Gamma);
+                col.rgb = pow(col.rgb, 1.0 / _GLOBAL_Gamma);
                 return col;
             }
             ENDCG
