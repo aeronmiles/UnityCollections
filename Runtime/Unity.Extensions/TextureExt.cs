@@ -197,68 +197,97 @@ public static class TextureExt
     RenderTexture.ReleaseTemporary(texRT);
   }
 
-
-  // @TODO: vlidate & test
-  public static void BlitToTexCentreFitted(this Texture sourceTex, Texture2D texOut, Material mat = null, RenderTextureFormat format = RenderTextureFormat.ARGBHalf, bool mipChains = false)
+  public static void BlitToTexCentreFitted(this Texture2D source, Texture2D destination)
   {
-    int sourceWidth = sourceTex.width;
-    int sourceHeight = sourceTex.height;
-    int destWidth = texOut.width;
-    int destHeight = texOut.height;
+    // Calculate the scale factor and offsets
+    float srcAspect = (float)source.width / source.height;
+    float dstAspect = (float)destination.width / destination.height;
 
-    // Calculate aspect ratios
-    float sourceAspect = sourceWidth / (float)sourceHeight;
-    float destAspect = destWidth / (float)destHeight;
-
-    // Calculate scale to fit the source texture into the destination texture
-    float scale;
-    if (sourceAspect > destAspect)
+    float scaleWidth, scaleHeight;
+    if (srcAspect > dstAspect)
     {
-      // Source is wider
-      scale = destWidth / (float)sourceWidth;
+      scaleWidth = 1.0f;
+      scaleHeight = srcAspect / dstAspect;
     }
     else
     {
-      // Source is taller or equal
-      scale = destHeight / (float)sourceHeight;
+      scaleWidth = dstAspect / srcAspect;
+      scaleHeight = 1.0f;
     }
 
-    var rt = RenderTexture.GetTemporary(sourceWidth, sourceHeight, 0, format);
+    float offsetX = (1.0f - scaleWidth) / 2.0f;
+    float offsetY = (1.0f - scaleHeight) / 2.0f;
 
-    RenderTexture.active = rt;
-    GL.Clear(true, true, Color.black);
+    // Create a temporary RenderTexture
+    RenderTexture tempRT = RenderTexture.GetTemporary(destination.width, destination.height, 0, RenderTextureFormat.Default, RenderTextureReadWrite.Linear);
 
-    // Blit the entire source texture to the render texture
-    if (mat != null)
-      Graphics.Blit(sourceTex, rt, mat);
-    else
-      Graphics.Blit(sourceTex, rt);
+    // Set the active RenderTexture
+    RenderTexture.active = tempRT;
 
-    // Create a new temporary RenderTexture where we will draw the source texture centered
-    var texRT = RenderTexture.GetTemporary(destWidth, destHeight, 0, format);
-    RenderTexture.active = texRT;
-    GL.Clear(true, true, Color.black); // Optional: Clear with black color
+    // Clear the RenderTexture
+    GL.Clear(true, true, Color.clear);
 
-    // Calculate the rect where to draw the source texture
-    int scaledWidth = (int)(sourceWidth * scale);
-    int scaledHeight = (int)(sourceHeight * scale);
-    Rect targetRect = new Rect((destWidth - scaledWidth) / 2, (destHeight - scaledHeight) / 2, scaledWidth, scaledHeight);
+    // Set up the material and pass the scale and offset
+    Material material = new Material(Shader.Find("Hidden/BlitCropped"));
+    material.SetTexture("_MainTex", source);
+    material.SetVector("_CropRect", new Vector4(offsetX, offsetY, scaleWidth, scaleHeight));
 
-    // Use Graphics.DrawTexture instead of Blit for more control over the positioning
-    if (mat != null)
-      Graphics.DrawTexture(targetRect, sourceTex, mat);
-    else
-      Graphics.DrawTexture(targetRect, sourceTex);
+    // Blit the texture
+    Graphics.Blit(source, tempRT, material);
 
-    // Copy from the RenderTexture to the target Texture2D
-    texOut.ReadPixels(new Rect(0, 0, destWidth, destHeight), 0, 0);
-    texOut.Apply(mipChains);
+    // Copy the result to the destination texture
+    RenderTexture.active = tempRT;
+    destination.ReadPixels(new Rect(0, 0, tempRT.width, tempRT.height), 0, 0);
+    destination.Apply();
 
-    // Clean up
+    // Release the temporary RenderTexture
+    RenderTexture.ReleaseTemporary(tempRT);
+
+    // Reset the active RenderTexture
     RenderTexture.active = null;
-    RenderTexture.ReleaseTemporary(rt);
-    RenderTexture.ReleaseTemporary(texRT);
   }
+
+  // public static void BlitToTexCentreFitted(this Texture sourceTex, Texture2D texOut, Material mat = null, RenderTextureFormat format = RenderTextureFormat.ARGBHalf, bool mipChains = false)
+  // {
+  //   int sourceWidth = sourceTex.width;
+  //   int sourceHeight = sourceTex.height;
+  //   int destWidth = texOut.width;
+  //   int destHeight = texOut.height;
+
+  //   // Calculate aspect ratios
+  //   float scaleWidth = destWidth / (float)sourceWidth;
+  //   float scaleHeight = destHeight / (float)sourceHeight;
+  //   float scale = Mathf.Min(scaleWidth, scaleHeight);
+
+  //   // Create a new temporary RenderTexture where we will draw the source texture centered
+  //   var texRT = RenderTexture.GetTemporary(destWidth, destHeight, 0, format);
+  //   RenderTexture.active = texRT;
+  //   GL.Clear(true, true, Color.black); // Optional: Clear with black color
+
+  //   // Calculate the rect where to draw the source texture
+  //   int scaledWidth = Mathf.RoundToInt(sourceWidth * scale);
+  //   int scaledHeight = Mathf.RoundToInt(sourceHeight * scale);
+  //   Rect targetRect = new Rect((destWidth - scaledWidth) * 0.5f, (destHeight - scaledHeight) * 0.5f, scaledWidth, scaledHeight);
+
+  //   // Use Graphics.DrawTexture to draw the source texture into the target rect
+  //   if (mat != null)
+  //   {
+  //     Graphics.DrawTexture(targetRect, sourceTex, mat);
+  //   }
+  //   else
+  //   {
+  //     Graphics.DrawTexture(targetRect, sourceTex);
+  //   }
+
+  //   // Copy from the RenderTexture to the target Texture2D
+  //   texOut.ReadPixels(new Rect(0, 0, destWidth, destHeight), 0, 0);
+  //   texOut.Apply(mipChains);
+
+  //   // Clean up
+  //   RenderTexture.active = null;
+  //   RenderTexture.ReleaseTemporary(texRT);
+  // }
+
 
   /// <summary>
   /// blit sourceTex to texOut

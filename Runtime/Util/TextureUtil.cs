@@ -22,7 +22,7 @@ public static class TextureUtil
     return false;
   }
 
-  public static IEnumerator LoadImage(string path, Action<Texture2D> callback = null)
+  public static IEnumerator LoadImage(string path, Action<Texture2D> callback = null, TextureFormat textureFormat = TextureFormat.RGBA32)
   {
     using (UnityWebRequest uwr = UnityWebRequestTexture.GetTexture(path))
     {
@@ -30,13 +30,27 @@ public static class TextureUtil
 
       if (uwr.result != UnityWebRequest.Result.Success)
       {
-        Debug.Log(uwr.error);
+        Debug.LogError(uwr.error);
       }
       else
       {
-        // Get downloaded asset bundle
-        Texture2D texture = DownloadHandlerTexture.GetContent(uwr);
-        callback?.Invoke(texture);
+        // Get downloaded texture data
+        Texture2D downloadedTexture = DownloadHandlerTexture.GetContent(uwr);
+
+        if (downloadedTexture.format == textureFormat)
+        {
+          callback?.Invoke(downloadedTexture);
+        }
+        else
+        {
+          // Create a new Texture2D with the specified format
+          Texture2D texture = new Texture2D(downloadedTexture.width, downloadedTexture.height, textureFormat, false);
+
+          // Copy the pixels from the downloaded texture to the new texture
+          texture.SetPixels32(downloadedTexture.GetPixels32());
+          texture.Apply();
+          callback?.Invoke(texture);
+        }
       }
     }
   }

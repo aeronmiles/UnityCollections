@@ -36,6 +36,7 @@ Shader "AM/Sampling/Lanczos2UpscalerCAS"
             };
 
             sampler2D _MainTex;
+			      float4 _MainTex_ST;
             sampler3D _LutTex;
             float4 _MainTex_TexelSize;
             float _CASLevel, _LutAmount, _Lift, _GammaShadows, _GammaHighlights, _Gain;
@@ -45,6 +46,7 @@ Shader "AM/Sampling/Lanczos2UpscalerCAS"
                 v2f o;
                 o.vertex = UnityObjectToClipPos(v.vertex);
                 o.uv = v.uv;
+				        o.uv = TRANSFORM_TEX(v.uv, _MainTex);
                 return o;
             }
 
