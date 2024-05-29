@@ -43,6 +43,30 @@ public class RenderTargetManager : MonoSingletonScene<RenderTargetManager>
     return false;
   }
 
+  public int Width(string id)
+  {
+    foreach (var r in _renderTargets)
+    {
+      if (r.id == id)
+      {
+        return r.width;
+      }
+    }
+    return -1;
+  }
+
+  public int Height(string id)
+  {
+    foreach (var r in _renderTargets)
+    {
+      if (r.id == id)
+      {
+        return r.height;
+      }
+    }
+    return -1;
+  }
+
   [Serializable]
   public abstract class RenderTargetBase : IID
   {
@@ -58,6 +82,8 @@ public class RenderTargetManager : MonoSingletonScene<RenderTargetManager>
 
     [Header("Texture Settings")]
     public RenderTexture renderTexture;
+    public int width => renderTexture.width;
+    public int height => renderTexture.height;
     public int padding = 0;
 
     [Header("Debug")]

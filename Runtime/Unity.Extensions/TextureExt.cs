@@ -197,14 +197,14 @@ public static class TextureExt
     RenderTexture.ReleaseTemporary(texRT);
   }
 
-  public static void BlitToTexCentreFitted(this Texture2D source, Texture2D destination)
+  public static void BlitToTexCentreFitted(this Texture2D source, Texture2D destination, bool fitInside = true)
   {
     // Calculate the scale factor and offsets
     float srcAspect = (float)source.width / source.height;
     float dstAspect = (float)destination.width / destination.height;
 
     float scaleWidth, scaleHeight;
-    if (srcAspect > dstAspect)
+    if ((fitInside && srcAspect > dstAspect) || (!fitInside && srcAspect < dstAspect))
     {
       scaleWidth = 1.0f;
       scaleHeight = srcAspect / dstAspect;
