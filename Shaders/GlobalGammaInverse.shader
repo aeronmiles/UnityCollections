@@ -8,6 +8,7 @@ Shader "AM/Unlit/GlobalGammaInverse"
     {
         Tags { "RenderType"="Opaque" }
         ZTest Always
+        ZWrite Off
         LOD 100
 
         Pass
