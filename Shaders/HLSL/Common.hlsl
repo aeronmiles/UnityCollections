@@ -30,6 +30,7 @@ float2 uvScreen(float4 vert)
     float2 uvScreen;
     uvScreen.x = (vert.x / vert.w + 1.0) * 0.5; 
     uvScreen.y = (vert.y / vert.w + 1.0) * 0.5;
+    uvScreen.x = 1.0 - uvScreen.x; // Flip X
     uvScreen.y = 1.0 - uvScreen.y; // Flip Y
     return uvScreen;
 }
@@ -41,6 +42,7 @@ float2 uvScreen(float4 vert, float rotationRadians)
     float2 uvScreen;
     uvScreen.x = (vert.x / vert.w + 1.0) * 0.5; 
     uvScreen.y = (vert.y / vert.w + 1.0) * 0.5;
+    uvScreen.x = 1.0 - uvScreen.x; // Flip X
     uvScreen.y = 1.0 - uvScreen.y; // Flip Y
     
     // Apply inverse rotation to the UV coordinates
