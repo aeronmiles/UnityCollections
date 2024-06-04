@@ -58,7 +58,7 @@ public static class CameraExt
   /// <param name="padding">Padding added around the cropped area.</param>
   /// <param name="filterMode">The filter mode for the texture.</param>
   /// <returns>A Texture2D containing the cropped area.</returns>
-  public static bool BlitCroppedToScreenBounds(this Camera camera, ref Texture2D texOut, Renderer targetRenderer, Material blitMat = null, int size = 128, int padding = 32, FilterMode filterMode = FilterMode.Bilinear, bool mipChains = false)
+  public static bool BlitCroppedToScreenBounds(this Camera camera, ref Texture2D texOut, Renderer targetRenderer, int width, int height, Material blitMat = null, int size = 128, int padding = 32, FilterMode filterMode = FilterMode.Bilinear, bool mipChains = false)
   {
     if (camera == null || targetRenderer == null || size <= 0)
     {
@@ -85,7 +85,7 @@ public static class CameraExt
 
     var cachedTargetTexture = camera.targetTexture;
 
-    var rt = RenderTexture.GetTemporary(Screen.width, Screen.height, 24, RenderTextureFormat.ARGBHalf);
+    var rt = RenderTexture.GetTemporary(width, height, 24, RenderTextureFormat.ARGBHalf);
     rt.filterMode = filterMode;
 
     // Render to texture
@@ -155,7 +155,7 @@ public static class CameraExt
   //   var cachedTargetTexture = camera.targetTexture;
 
   //   // Render to texture
-  //   var rtScreen = RenderTexture.GetTemporary(Screen.width, Screen.height, 0, rtOut.format);
+  //   var rtScreen = RenderTexture.GetTemporary(width, height, 0, rtOut.format);
 
   //   camera.targetTexture = rtScreen;
   //   camera.RenderDontRestore();
@@ -180,7 +180,7 @@ public static class CameraExt
   // }
 
   private static Material _BlitCroppedMaterial;
-  public static bool BlitCroppedToScreenBounds(this Camera camera, ref RenderTexture rtOut, Renderer targetRenderer, Material[] blitMats = null, int padding = 12, bool linear = true)
+  public static bool BlitCroppedToScreenBounds(this Camera camera, ref RenderTexture rtOut, Renderer targetRenderer, int width, int height, Material[] blitMats = null, int padding = 12, bool linear = true)
   {
     if (camera == null || targetRenderer == null)
     {
@@ -202,12 +202,12 @@ public static class CameraExt
     var cachedTargetTexture = camera.targetTexture;
 
     // Render to texture
-    var rtScreen = RenderTexture.GetTemporary(Screen.width, Screen.height, 0, rtOut.format);
+    var rtScreen = RenderTexture.GetTemporary(width, height, 0, rtOut.format);
     camera.targetTexture = rtScreen;
     camera.RenderDontRestore();
 
     // Calculate normalized crop rectangle
-    Rect normalizedRect = new Rect(bounds.x / Screen.width, bounds.y / Screen.height, bounds.width / Screen.width, bounds.height / Screen.height);
+    Rect normalizedRect = new Rect(bounds.x / width, bounds.y / height, bounds.width / width, bounds.height / height);
 
     // Set up the custom blit material
     if (_BlitCroppedMaterial == null)
@@ -298,13 +298,21 @@ public static class CameraExt
   /// </summary>
   /// <param name="camera">The camera for which the projection matrix is calculated.</param>
   /// <param name="screenSpaceBounds">The bounds within
-  public static Matrix4x4 CroppedProjectionMatrix(this Camera camera, Bounds screenSpaceBounds)
+  public static Matrix4x4 CroppedProjectionMatrix(this Camera camera, Bounds screenSpaceBounds, int width = -1, int height = -1)
   {
+    if (width < 0)
+    {
+      width = Screen.width;
+    }
+    if (height < 0)
+    {
+      height = Screen.height;
+    }
     // Calculate texture coordinates relative to the screen-space bounding box
-    float left = screenSpaceBounds.min.x / Screen.width;
-    float right = screenSpaceBounds.max.x / Screen.width;
-    float bottom = screenSpaceBounds.min.y / Screen.height;
-    float top = screenSpaceBounds.max.y / Screen.height;
+    float left = screenSpaceBounds.min.x / width;
+    float right = screenSpaceBounds.max.x / width;
+    float bottom = screenSpaceBounds.min.y / height;
+    float top = screenSpaceBounds.max.y / height;
 
     // (Adapt this if you have an off-center or oblique projection)
     return Matrix4x4.Ortho(left, right, bottom, top, camera.nearClipPlane, camera.farClipPlane);

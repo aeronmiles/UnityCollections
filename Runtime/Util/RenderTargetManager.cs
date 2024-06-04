@@ -109,7 +109,9 @@ public class RenderTargetManager : MonoSingletonScene<RenderTargetManager>
       }
       if (renderTexture == null)
       {
-        renderTexture = new RenderTexture(Screen.width, Screen.height, 24);
+        var renderWidth = Display.displays[0].renderingWidth;
+        var renderHeight = Display.displays[0].renderingHeight;
+        renderTexture = new RenderTexture(renderWidth, renderHeight, 24);
       }
       RenderToTarget = true;
     }
@@ -189,6 +191,8 @@ public class RenderTargetManager : MonoSingletonScene<RenderTargetManager>
 
     protected bool RenderCropped()
     {
+      var renderWidth = Display.displays[0].renderingWidth;
+      var renderHeight = Display.displays[0].renderingHeight;
       Vector3 _scale = sourceRenderer.transform.localScale;
       sourceRenderer.transform.localScale = sourceRenderer.transform.localScale.Multiply(sourceRendererScale);
 
@@ -198,7 +202,7 @@ public class RenderTargetManager : MonoSingletonScene<RenderTargetManager>
       {
         sourceRenderer.sharedMaterial = blitMaterial;
       }
-      var result = camera.BlitCroppedToScreenBounds(ref renderTexture, sourceRenderer, null, padding, linear);
+      var result = camera.BlitCroppedToScreenBounds(ref renderTexture, sourceRenderer, renderWidth, renderHeight, null, padding, linear);
 
       // camera.BlitCroppedToTarget(ref renderTexture, sourceRenderer, null, padding);
       // _tex = camera.BlitCroppedToScreenBounds(sourceRenderer, null, 256, padding);

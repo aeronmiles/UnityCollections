@@ -15,10 +15,12 @@ public static class BoundsExt
 
   public static bool InScreenNonZero(this Rect bounds)
   {
+    var renderWidth = Display.displays[0].renderingWidth;
+    var renderHeight = Display.displays[0].renderingHeight;
     if (bounds.x < 0 ||
-        bounds.x + bounds.width > Screen.width ||
+        bounds.x + bounds.width > renderWidth||
         bounds.y < 0 ||
-        bounds.y + bounds.height > Screen.height ||
+        bounds.y + bounds.height > renderHeight ||
         bounds.width < 1 || bounds.height < 1)
     {
       return false;

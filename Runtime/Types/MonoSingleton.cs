@@ -47,9 +47,9 @@ public class MonoSingleton<T> : MonoBehaviour where T : Component
       {
         _Instance = this as T;
       }
-      else if (FindObjectsOfType<T>().Length > 1)
+      else if (FindObjectsOfType<MonoSingleton<T>>().Length > 1)
       {
-        Debug.LogError($"Another instance of {typeof(T)} was attempted to be created, which is not allowed.");
+        Debug.LogError($"Another instance of {typeof(MonoSingleton<T>)} was attempted to be created, which is not allowed.");
         DestroyImmediate(gameObject);
       }
     }

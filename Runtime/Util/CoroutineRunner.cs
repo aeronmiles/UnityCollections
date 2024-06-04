@@ -11,6 +11,12 @@ public class CoroutineRunner : MonoSingleton<CoroutineRunner>
     _ = I.StartCoroutine(coroutine);
   }
 
+  public static IEnumerator RunAfter(IEnumerator coroutine, float delay)
+  {
+    yield return new WaitForSeconds(delay);
+    Run(coroutine);
+  }
+
   public static void RunAllAsync(IEnumerable<IEnumerator> coroutines)
   {
     foreach (var coro in coroutines)
