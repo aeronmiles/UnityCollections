@@ -31,6 +31,14 @@ public class MonoSingleton<T> : MonoBehaviour where T : Component
     }
   }
 
+  private void OnValidate()
+  {
+    if (_Instance == null)
+    {
+      _Instance = this as T;
+    }
+  }
+
   protected virtual void Awake()
   {
     lock (_Lock)
@@ -39,7 +47,7 @@ public class MonoSingleton<T> : MonoBehaviour where T : Component
       {
         _Instance = this as T;
       }
-      else
+      else if (FindObjectsOfType<T>().Length > 1)
       {
         Debug.LogError($"Another instance of {typeof(T)} was attempted to be created, which is not allowed.");
         DestroyImmediate(gameObject);
