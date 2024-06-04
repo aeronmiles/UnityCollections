@@ -288,7 +288,6 @@ public static class TextureExt
   //   RenderTexture.ReleaseTemporary(texRT);
   // }
 
-
   /// <summary>
   /// blit sourceTex to texOut
   /// </summary>

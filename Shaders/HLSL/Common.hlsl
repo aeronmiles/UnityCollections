@@ -55,6 +55,26 @@ float2 uvScreen(float4 vert, float rotationRadians)
     return uvScreen;
 }
 
+// Approximate screen space UVs (note: not 100% accurate with perspective)
+float2 uvScreen(float4 vert, float2 offset, float rotationRadians)
+{
+    // Approximate screen space UVs (note: not 100% accurate with perspective)
+    float2 uvScreen;
+    uvScreen.x = (vert.x / vert.w + 1.0) * 0.5 + offset.x; 
+    uvScreen.y = (vert.y / vert.w + 1.0) * 0.5 + offset.y;
+    uvScreen.x = 1.0 - uvScreen.x; // Flip X
+    uvScreen.y = 1.0 - uvScreen.y; // Flip Y
+    
+    // Apply inverse rotation to the UV coordinates
+    float2x2 rotationMatrix = float2x2(cos(rotationRadians), sin(rotationRadians),
+                                       -sin(rotationRadians), cos(rotationRadians));
+    
+    // Translate UVs to center, apply rotation, then translate back
+    uvScreen = mul(rotationMatrix, (uvScreen - 0.5)) + 0.5;
+
+    return uvScreen;
+}
+
 float fresnel(float3 normal, float3 viewDir)
 {   
     float dotNV = dot(normalize(viewDir), normalize(normal));
