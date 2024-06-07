@@ -1,3 +1,4 @@
+using System;
 using System.Diagnostics;
 using System.Text.RegularExpressions;
 using UnityEngine;
@@ -5,7 +6,7 @@ using UnityEngine;
 public class MapTouchDisplay : MonoBehaviour
 {
   // @TODO: Configuration setup
-  [SerializeField] private string _outputDisplay = "DP-1";
+  [SerializeField] private string _touchDisplayPort = "DP-1";
 
   // Call the functions to list devices, parse the ID, and map the device
   private void Start()
@@ -21,9 +22,9 @@ public class MapTouchDisplay : MonoBehaviour
       UnityEngine.Debug.Log($"Mapping TSTP MTouch device with ID: {deviceId}.");
 
       // Get display and screen dimensions
-      var (displayWidth, displayHeight, displayX, displayY, totalWidth, totalHeight) = GetDisplayDimensions(_outputDisplay);
+      var (displayWidth, displayHeight, displayX, displayY, totalWidth, totalHeight) = GetDisplayDimensions(_touchDisplayPort);
 
-      MapDeviceToOutput(deviceId, _outputDisplay);
+      MapDeviceToOutput(deviceId, _touchDisplayPort);
       SetCoordinateTransformationMatrix(deviceId, displayWidth, displayHeight, displayX, displayY, totalWidth, totalHeight);
     }
   }
@@ -36,6 +37,8 @@ public class MapTouchDisplay : MonoBehaviour
     {
       FileName = "/usr/bin/bash",
       Arguments = $"-c \"{command}\"",
+      WorkingDirectory = "/",
+      RedirectStandardInput = true,
       RedirectStandardOutput = true,
       RedirectStandardError = true,
       UseShellExecute = false,
@@ -45,7 +48,15 @@ public class MapTouchDisplay : MonoBehaviour
     using (Process process = new Process())
     {
       process.StartInfo = processStartInfo;
-      _ = process.Start();
+      try
+      {
+        _ = process.Start();
+      }
+      catch (Exception ex)
+      {
+        UnityEngine.Debug.LogError($"Error starting process: {ex.Message}");
+        throw;
+      }
 
       string output = process.StandardOutput.ReadToEnd();
       string error = process.StandardError.ReadToEnd();
@@ -98,8 +109,8 @@ public class MapTouchDisplay : MonoBehaviour
     float displayHeight = 1080f;
     float displayX = 0f;
     float displayY = 0f;
-    float totalWidth = 2160f;
-    float totalHeight = 4920f;
+    float totalWidth = Screen.width;
+    float totalHeight = Screen.height;
 
     // Regex to find the current resolution and position of the specified display
     string displayPattern = $@"{Regex.Escape(outputDisplay)} connected.*?(\d+)x(\d+)\+(\d+)\+(\d+)";
@@ -122,6 +133,7 @@ public class MapTouchDisplay : MonoBehaviour
       totalHeight = float.Parse(screenMatch.Groups[2].Value);
     }
 
+    UnityEngine.Debug.Log($"Display: {displayWidth}x{displayHeight}+{displayX}+{displayY}, Screen: {totalWidth}x{totalHeight}");
     return (displayWidth, displayHeight, displayX, displayY, totalWidth, totalHeight);
   }
 
@@ -139,6 +151,7 @@ public class MapTouchDisplay : MonoBehaviour
     float offsetX = displayX / totalWidth;
     float offsetY = displayY / totalHeight;
 
+    UnityEngine.Debug.Log($"Setting transformation matrix: {scaleX} 0 {offsetX} 0 {scaleY} {offsetY} 0 0 1");
     string command = $"xinput set-prop {deviceId} 'Coordinate Transformation Matrix' {scaleX} 0 {offsetX} 0 {scaleY} {offsetY} 0 0 1";
     _ = ExecuteCommand(command);
   }

@@ -26,6 +26,10 @@ public static class IEnumerableExt
   public static T TakeRandom<T>(this IEnumerable<T> array)
   {
     int l = array.Count();
+    if (l == 0)
+    {
+      return default;
+    }
     int x = UnityEngine.Random.Range(0, l);
     return array.ElementAt(x);
   }
