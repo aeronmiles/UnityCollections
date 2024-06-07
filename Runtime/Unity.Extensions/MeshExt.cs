@@ -32,7 +32,6 @@ public static class MeshExt
   [MethodImpl(MethodImplOptions.AggressiveInlining)]
   public static Vector3 NormalsAveraged(this Mesh mesh, int[] indices, int meshDataIndex)
   {
-    // @TODO: remove memory allocations
     using (var meshData = Mesh.AcquireReadOnlyMeshData(mesh))  // Request index 0 for vertex data
     {
       var mesh0 = meshData[meshDataIndex];
