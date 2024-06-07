@@ -19,17 +19,22 @@ public class MapTouchDisplay : MonoBehaviour
     else
     {
       UnityEngine.Debug.Log($"Mapping TSTP MTouch device with ID: {deviceId}.");
+
+      // Get display and screen dimensions
+      var (displayWidth, displayHeight, displayX, displayY, totalWidth, totalHeight) = GetDisplayDimensions(_outputDisplay);
+
       MapDeviceToOutput(deviceId, _outputDisplay);
+      SetCoordinateTransformationMatrix(deviceId, displayWidth, displayHeight, displayX, displayY, totalWidth, totalHeight);
     }
-    SetCoordinateTransformationMatrix(deviceId);
   }
 
   // Function to execute a shell command and return the output
   private string ExecuteCommand(string command)
   {
+    UnityEngine.Debug.Log($"Executing command: bash -c {command}");
     ProcessStartInfo processStartInfo = new ProcessStartInfo
     {
-      FileName = "/bin/bash",
+      FileName = "/usr/bin/bash",
       Arguments = $"-c \"{command}\"",
       RedirectStandardOutput = true,
       RedirectStandardError = true,
@@ -44,6 +49,8 @@ public class MapTouchDisplay : MonoBehaviour
 
       string output = process.StandardOutput.ReadToEnd();
       string error = process.StandardError.ReadToEnd();
+      UnityEngine.Debug.Log($"Command output: {output}");
+      UnityEngine.Debug.Log($"Command error: {error}");
 
       process.WaitForExit();
 
@@ -83,15 +90,56 @@ public class MapTouchDisplay : MonoBehaviour
     _ = ExecuteCommand(command);
   }
 
+  // Function to get the display dimensions using xrandr
+  private (float displayWidth, float displayHeight, float displayX, float displayY, float totalWidth, float totalHeight) GetDisplayDimensions(string outputDisplay)
+  {
+    string xrandrOutput = ExecuteCommand("xrandr");
+    float displayWidth = 1920f;
+    float displayHeight = 1080f;
+    float displayX = 0f;
+    float displayY = 0f;
+    float totalWidth = 2160f;
+    float totalHeight = 4920f;
+
+    // Regex to find the current resolution and position of the specified display
+    string displayPattern = $@"{Regex.Escape(outputDisplay)} connected.*?(\d+)x(\d+)\+(\d+)\+(\d+)";
+    Match displayMatch = Regex.Match(xrandrOutput, displayPattern);
+
+    if (displayMatch.Success)
+    {
+      displayWidth = float.Parse(displayMatch.Groups[1].Value);
+      displayHeight = float.Parse(displayMatch.Groups[2].Value);
+      displayX = float.Parse(displayMatch.Groups[3].Value);
+      displayY = float.Parse(displayMatch.Groups[4].Value);
+    }
+
+    string screenPattern = @"current (\d+) x (\d+)";
+    Match screenMatch = Regex.Match(xrandrOutput, screenPattern);
+
+    if (screenMatch.Success)
+    {
+      totalWidth = float.Parse(screenMatch.Groups[1].Value);
+      totalHeight = float.Parse(screenMatch.Groups[2].Value);
+    }
+
+    return (displayWidth, displayHeight, displayX, displayY, totalWidth, totalHeight);
+  }
+
   // Function to set the coordinate transformation matrix
-  private void SetCoordinateTransformationMatrix(int deviceId)
+  private void SetCoordinateTransformationMatrix(int deviceId, float displayWidth, float displayHeight, float displayX, float displayY, float totalWidth, float totalHeight)
   {
     if (deviceId < 0)
     {
       return;
     }
 
-    string command = $"xinput set-prop {deviceId} 'Coordinate Transformation Matrix' 1 0 0 0 1 0 0 0 1";
+    // Calculate the transformation matrix to map the touch to the specific display
+    float scaleX = displayWidth / totalWidth;
+    float scaleY = displayHeight / totalHeight;
+    float offsetX = displayX / totalWidth;
+    float offsetY = displayY / totalHeight;
+
+    string command = $"xinput set-prop {deviceId} 'Coordinate Transformation Matrix' {scaleX} 0 {offsetX} 0 {scaleY} {offsetY} 0 0 1";
     _ = ExecuteCommand(command);
   }
 }
