@@ -25,17 +25,8 @@ public class MonoSingleton<T> : MonoBehaviour where T : Component
             }
           }
         }
-
         return _Instance;
       }
-    }
-  }
-
-  private void OnValidate()
-  {
-    if (_Instance == null)
-    {
-      _Instance = this as T;
     }
   }
 
@@ -46,21 +37,33 @@ public class MonoSingleton<T> : MonoBehaviour where T : Component
       if (_Instance == null)
       {
         _Instance = this as T;
+        if (Application.isPlaying)
+        {
+          DontDestroyOnLoad(gameObject);
+        }
       }
-      else if (FindObjectsOfType<MonoSingleton<T>>().Length > 1)
+      else if (_Instance != this)
       {
-        Debug.LogError($"Another instance of {typeof(MonoSingleton<T>)} was attempted to be created, which is not allowed.");
+        Debug.LogWarning($"[Singleton] An instance of {typeof(T)} already exists. Destroying the duplicate.");
         DestroyImmediate(gameObject);
       }
     }
   }
 
-  public virtual void OnDestroy()
+  protected virtual void OnDestroy()
   {
-    Debug.Log($"MonoSingleton<{typeof(T)}> OnDestroy()");
     if (_Instance == this)
     {
       _Instance = null;
+    }
+    Debug.Log($"MonoSingleton<{typeof(T)}> OnDestroy()");
+  }
+
+  private void OnValidate()
+  {
+    if (_Instance == null)
+    {
+      _Instance = this as T;
     }
   }
 }
