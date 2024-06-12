@@ -526,14 +526,42 @@ float3 RGBtoHCY(in float3 rgb)
   return float3(hcv.x, hcv.y, Y);
 }
 
+float3 levels(float3 col, float lift, float gain, float gamma)
+{
+    // Calculate luminance using a standard luminance formula
+    float luminance = LINtoLUM(col);
+    
+    // Apply gamma correction
+    float3 gammaCorrected = pow(col, gamma);
+    
+    // Apply lift (offset)
+    float3 lifted = gammaCorrected + lift;
+    
+    // Apply gain (scale)
+    float3 adjusted = lifted * gain;
+    
+    // Clamp the final result to the range [0, 1]
+    return saturate(adjusted);
+}
+
 float3 levels(float3 col, float lift, float gain, float shadowGamma, float highGamma)
 {
-  col += lift;
-  float luminance = LINtoLUM(col);
-  col = lerp(pow(col, shadowGamma), pow(col, highGamma), luminance);
-  float remappedLuminance = lerp(luminance, 1.0, gain * luminance / 1);
-  col *= (remappedLuminance / luminance);
-  return col;
+    // Calculate luminance using a standard luminance formula
+    float luminance = LINtoLUM(col);
+    
+    // Apply shadow and highlight gamma
+    float3 shadowCorrected = pow(col, shadowGamma);
+    float3 highlightCorrected = pow(col, highGamma);
+    col = lerp(shadowCorrected, highlightCorrected, luminance);
+    
+    // Apply lift (offset)
+    float3 lifted = col + lift;
+    
+    // Apply gain (scale)
+    float3 adjusted = lifted * gain;
+    
+    // Clamp the final result to the range [0, 1]
+    return saturate(adjusted);
 }
 
 float4 levels(float4 col, float lift, float gain, float shadowGamma, float highGamma)
