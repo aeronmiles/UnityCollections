@@ -526,6 +526,13 @@ float3 RGBtoHCY(in float3 rgb)
   return float3(hcv.x, hcv.y, Y);
 }
 
+float3 saturation(float3 color, float saturation)
+{
+    float g = dot(color, float3(0.2126, 0.7152, 0.0722));
+    float3 gray = float3(g,g,g);
+    return lerp(gray, color, saturation);
+}
+
 float3 levels(float3 col, float lift, float gain, float gamma)
 {
     // Calculate luminance using a standard luminance formula
