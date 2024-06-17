@@ -3,7 +3,6 @@ using System.IO;
 using System.Runtime.Serialization.Formatters.Binary;
 using UnityEngine;
 using Newtonsoft.Json;
-using Microsoft.SqlServer.Server;
 
 public static class DataUtil
 {
