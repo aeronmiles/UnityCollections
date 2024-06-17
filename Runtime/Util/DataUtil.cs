@@ -3,6 +3,8 @@ using System.IO;
 using System.Runtime.Serialization.Formatters.Binary;
 using UnityEngine;
 using Newtonsoft.Json;
+using System.Collections;
+using System.Threading.Tasks;
 
 public static class DataUtil
 {
@@ -119,6 +121,25 @@ public static class DataUtil
       using StreamWriter writer = new StreamWriter(filePath);
       writer.Write(jsonString);
       writer.Close();
+      return true;
+    }
+    catch (Exception ex)
+    {
+      Debug.Log($"DataUtil -> Save(path={filePath}) :: Error saving data: " + ex.Message);
+      return false;
+    }
+  }
+
+  public static async Task<bool> SaveStringAsync(string jsonString, string filePath)
+  {
+    try
+    {
+      Debug.Log($"DataUtil -> Save(path={filePath}) :: Data saving\n" + jsonString);
+      using (StreamWriter writer = new StreamWriter(filePath))
+      {
+        await writer.WriteAsync(jsonString);
+      }
+      Debug.Log($"DataUtil -> Save(path={filePath}) :: Data saved successfully");
       return true;
     }
     catch (Exception ex)
