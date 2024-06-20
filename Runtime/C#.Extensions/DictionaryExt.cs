@@ -37,7 +37,7 @@ public static class DictionaryExt
     string str = "";
     foreach (KeyValuePair<TKey, TValue> kvp in dict)
     {
-      str += kvp.Key + ": " + kvp.Value + "\n";
+      str += kvp.Key + ": " + kvp.Value;
     }
 
     return str;

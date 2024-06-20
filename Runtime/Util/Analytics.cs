@@ -1,7 +1,6 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.IO;
 using UnityEngine;
 using Newtonsoft.Json;
 
@@ -13,6 +12,7 @@ public class Analytics : MonoSingleton<Analytics>
   [SerializeField] private float _saveInterval = 60f;
   private readonly AnalyticsData _data = new();
   private long _sessionUTC;
+  private int _sessionID;
   private float _lastSaveTime;
 
   private long GetCurrentTimeMilliseconds() => DateTime.Now.ToUnixTimeMilliseconds();
@@ -20,29 +20,38 @@ public class Analytics : MonoSingleton<Analytics>
   private void Start()
   {
     _sessionUTC = GetCurrentTimeMilliseconds();
-    LogEvent("SessionStart", "");
+    LogEvent("AppStart", "");
+    _sessionID = PlayerPrefs.GetInt("__AnalyticsSessionID__", 0);
   }
 
 #if UNITY_EDITOR
   private new void OnDestroy()
   {
     base.OnDestroy();
-    LogEvent("SessionEnd", "");
-    StartCoroutine(Save());
+    LogEvent("AppEnd", "");
+    _ = StartCoroutine(Save());
   }
 #endif
 
+  public void IncrementSessionID()
+  {
+    ++_sessionID;
+    PlayerPrefs.SetInt("__AnalyticsSessionID__", _sessionID);
+    PlayerPrefs.Save();
+  }
+
   public void LogEvent(string name, string description, Dictionary<string, string> parameters = null)
   {
-    _data.Events.Add(new AnalyticsEvent
+    _data.events.Add(new AnalyticsEvent
     {
-      Timecode = GetCurrentTimeMilliseconds(),
-      Name = name,
-      Description = description,
-      Parameters = parameters ?? new Dictionary<string, string>()
+      sessionID = _sessionID,
+      timecode = GetCurrentTimeMilliseconds(),
+      name = name,
+      description = description,
+      parameters = parameters ?? new Dictionary<string, string>()
     });
 
-    if (_data.Events.Count >= _maxEntriesPerFile || Time.time - _lastSaveTime >= _saveInterval)
+    if (_data.events.Count >= _maxEntriesPerFile || Time.time - _lastSaveTime >= _saveInterval)
     {
       if (_saveCoroutine != null)
       {
@@ -51,9 +60,9 @@ public class Analytics : MonoSingleton<Analytics>
       _saveCoroutine = StartCoroutine(Save());
     }
 
-    if (_data.Events.Count >= _maxEntriesPerFile)
+    if (_data.events.Count >= _maxEntriesPerFile)
     {
-      _data.Events.Clear();
+      _data.events.Clear();
       _sessionUTC = GetCurrentTimeMilliseconds();
     }
   }
@@ -76,29 +85,27 @@ public class Analytics : MonoSingleton<Analytics>
     if (!saveTask.Result)
     {
       OnError?.Invoke($"Failed to save analytics data to {path}");
-      LogEvent("SaveError", path);
+      LogEvent("Analytics", "SaveError", new Dictionary<string, string>() { { "value", path } });
     }
 
     _saveCoroutine = null;
   }
 
-  private string GetFilePath()
-  {
-    return $"{Application.persistentDataPath}/analytics-{_sessionUTC}.json";
-  }
+  private string GetFilePath() => $"{Application.persistentDataPath}/analytics-{_sessionUTC}.json";
 }
 
 [Serializable]
-internal class AnalyticsEvent
+internal struct AnalyticsEvent
 {
-  public long Timecode { get; set; }
-  public string Name { get; set; }
-  public string Description { get; set; }
-  public Dictionary<string, string> Parameters { get; set; }
+  public int sessionID;
+  public long timecode;
+  public string name;
+  public string description;
+  public Dictionary<string, string> parameters;
 }
 
 [Serializable]
 internal class AnalyticsData
 {
-  public List<AnalyticsEvent> Events { get; } = new();
+  public List<AnalyticsEvent> events = new();
 }

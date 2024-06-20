@@ -3,7 +3,6 @@ using System.IO;
 using System.Runtime.Serialization.Formatters.Binary;
 using UnityEngine;
 using Newtonsoft.Json;
-using System.Collections;
 using System.Threading.Tasks;
 
 public static class DataUtil
@@ -117,7 +116,9 @@ public static class DataUtil
   {
     try
     {
+#if DEBUG
       Debug.Log($"DataUtil -> Save(path={filePath}) :: Data saving\n" + jsonString);
+#endif
       using StreamWriter writer = new StreamWriter(filePath);
       writer.Write(jsonString);
       writer.Close();
@@ -134,7 +135,9 @@ public static class DataUtil
   {
     try
     {
+#if DEBUG
       Debug.Log($"DataUtil -> Save(path={filePath}) :: Data saving\n" + jsonString);
+#endif
       using (StreamWriter writer = new StreamWriter(filePath))
       {
         await writer.WriteAsync(jsonString);
@@ -159,7 +162,9 @@ public static class DataUtil
   {
     try
     {
+#if DEBUG
       Debug.Log($"DataUtil -> SaveJson(path={path}) :: Data saving, Type: {typeof(T)}\n" + JsonUtility.ToJson(data, true));
+#endif
       using StreamWriter writer = new StreamWriter(path);
       writer.Write(JsonConvert.SerializeObject(data));
       writer.Close();
@@ -176,8 +181,9 @@ public static class DataUtil
   {
     try
     {
+#if DEBUG
       Debug.Log($"DataUtil -> SaveBinary(path={path}) :: Data saving, Type: {typeof(T)}\n" + JsonUtility.ToJson(data));
-
+#endif
       BinaryFormatter b = new BinaryFormatter();
       FileStream dataFile = File.Create(path);
       b.Serialize(dataFile, data);
