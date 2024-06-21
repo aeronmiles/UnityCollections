@@ -5,66 +5,68 @@ using UnityEngine.SceneManagement;
 
 public class SceneLoader : MonoSingleton<SceneLoader>
 {
-  [SerializeField] GameObject m_loadingScreen;
+  [SerializeField] private GameObject m_loadingScreen;
   public static event Action<Scene, LoadSceneMode> OnSceneLoaded;
   public static event Action<Scene> OnSceneUnloaded;
 
   private void Awake()
   {
-    SceneManager.sceneLoaded += onSceneLoadedEvent;
-    SceneManager.sceneUnloaded += onSceneUnloadedEvent;
+    SceneManager.sceneLoaded += OnSceneLoadedEvent;
+    SceneManager.sceneUnloaded += OnSceneUnloadedEvent;
     m_loadingScreen.SetActive(false);
   }
 
-  private void Destroy()
+  private void OnDestroy()
   {
-    SceneManager.sceneLoaded -= onSceneLoadedEvent;
-    SceneManager.sceneUnloaded -= onSceneUnloadedEvent;
+    SceneManager.sceneLoaded -= OnSceneLoadedEvent;
+    SceneManager.sceneUnloaded -= OnSceneUnloadedEvent;
   }
 
-  private void onSceneLoadedEvent(Scene scene, LoadSceneMode mode)
+  private void OnSceneLoadedEvent(Scene scene, LoadSceneMode mode)
   {
     OnSceneLoaded?.Invoke(scene, mode);
   }
 
-  private void onSceneUnloadedEvent(Scene scene)
+  private void OnSceneUnloadedEvent(Scene scene)
   {
     OnSceneUnloaded?.Invoke(scene);
   }
 
-  public static void Load(string sceneName, bool showLoading)
+  public static void Load(string sceneName, bool showLoading, Action<Scene, LoadSceneMode> onSceneLoaded = null)
   {
     Debug.Log($"SceneLoader -> Load(sceneName = {sceneName})");
-    I.StartCoroutine(beginLoadScene(sceneName, showLoading));
+    _ = I.StartCoroutine(BeginLoadScene(sceneName, showLoading, onSceneLoaded));
   }
 
-  public static void UnloadScene(string sceneName)
+  public static void UnloadScene(string sceneName, Action<Scene> onSceneUnloaded = null)
   {
     Debug.Log($"SceneLoader -> UnloadScene(sceneName = {sceneName})");
-    I.StartCoroutine(beginUnloadScene(sceneName));
+    _ = I.StartCoroutine(BeginUnloadScene(sceneName, onSceneUnloaded));
   }
 
-  private static IEnumerator beginUnloadScene(string sceneName)
+  private static IEnumerator BeginUnloadScene(string sceneName, Action<Scene> onSceneUnloaded = null)
   {
     if (SceneExtensions.SceneLoaded(sceneName))
     {
       yield return SceneManager.UnloadSceneAsync(sceneName);
+      onSceneUnloaded?.Invoke(SceneManager.GetSceneByName(sceneName));
       print($"RenderableSceneLoader ** Scene '{sceneName}' Unloaded");
     }
   }
 
-  public static void AddScene(string sceneName)
+  public static void AddScene(string sceneName, Action<Scene, LoadSceneMode> onSceneLoaded = null)
   {
     Debug.Log($"SceneLoader -> AddScene(sceneName = {sceneName})");
-    I.StartCoroutine(beginAddScene(sceneName));
+    _ = I.StartCoroutine(BeginAddScene(sceneName, onSceneLoaded));
   }
 
-  private static IEnumerator beginAddScene(string sceneName)
+  private static IEnumerator BeginAddScene(string sceneName, Action<Scene, LoadSceneMode> onSceneLoaded = null)
   {
     yield return SceneManager.LoadSceneAsync(sceneName, LoadSceneMode.Additive);
+    onSceneLoaded?.Invoke(SceneManager.GetSceneByName(sceneName), LoadSceneMode.Additive);
   }
 
-  private static IEnumerator beginLoadScene(string sceneName, bool showLoading)
+  private static IEnumerator BeginLoadScene(string sceneName, bool showLoading, Action<Scene, LoadSceneMode> onSceneLoaded = null)
   {
     I.m_loadingScreen.SetActive(showLoading);
     if (showLoading)
@@ -72,5 +74,6 @@ public class SceneLoader : MonoSingleton<SceneLoader>
 
     yield return SceneManager.LoadSceneAsync(sceneName, LoadSceneMode.Single);
     I.m_loadingScreen.SetActive(false);
+    onSceneLoaded?.Invoke(SceneManager.GetSceneByName(sceneName), LoadSceneMode.Single);
   }
 }
