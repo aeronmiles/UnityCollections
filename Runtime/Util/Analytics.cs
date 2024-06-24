@@ -20,18 +20,8 @@ public class Analytics : MonoSingleton<Analytics>
   private void Start()
   {
     _sessionUTC = GetCurrentTimeMilliseconds();
-    LogEvent("AppStart", "");
     _sessionID = PlayerPrefs.GetInt("__AnalyticsSessionID__", 0);
   }
-
-#if UNITY_EDITOR
-  private new void OnDestroy()
-  {
-    base.OnDestroy();
-    LogEvent("AppEnd", "");
-    _ = StartCoroutine(Save());
-  }
-#endif
 
   public void IncrementSessionID()
   {
@@ -40,16 +30,17 @@ public class Analytics : MonoSingleton<Analytics>
     PlayerPrefs.Save();
   }
 
-  public void LogEvent(string name, string description, Dictionary<string, string> parameters = null)
+  public void LogEvent(string name, string description = "", Dictionary<string, string> parameters = null)
   {
-    _data.events.Add(new AnalyticsEvent
+    var evnt = new AnalyticsEvent
     {
       sessionID = _sessionID,
       timecode = GetCurrentTimeMilliseconds(),
       name = name,
       description = description,
       parameters = parameters ?? new Dictionary<string, string>()
-    });
+    };
+    _data.events.Add(evnt);
 
     if (_data.events.Count >= _maxEntriesPerFile || Time.time - _lastSaveTime >= _saveInterval)
     {
@@ -65,6 +56,7 @@ public class Analytics : MonoSingleton<Analytics>
       _data.events.Clear();
       _sessionUTC = GetCurrentTimeMilliseconds();
     }
+    Debug.Log(evnt.ToString());
   }
 
   private Coroutine _saveCoroutine;
@@ -85,7 +77,7 @@ public class Analytics : MonoSingleton<Analytics>
     if (!saveTask.Result)
     {
       OnError?.Invoke($"Failed to save analytics data to {path}");
-      LogEvent("Analytics", "SaveError", new Dictionary<string, string>() { { "value", path } });
+      LogEvent("analytics", "save_error", new Dictionary<string, string>() { { "path", path } });
     }
 
     _saveCoroutine = null;
@@ -102,6 +94,7 @@ internal struct AnalyticsEvent
   public string name;
   public string description;
   public Dictionary<string, string> parameters;
+  public override readonly string ToString() => $"{sessionID} - {name} - {description}\n parameters: {parameters.ToKeyValueString()}";
 }
 
 [Serializable]

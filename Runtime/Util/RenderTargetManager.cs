@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using UnityEditor;
 using UnityEngine;
 
 [ExecuteInEditMode]
@@ -79,6 +81,7 @@ public class RenderTargetManager : MonoSingletonScene<RenderTargetManager>
     public GameObjectActiveState[] activeStates;
     public Camera camera;
     public Material blitMaterial;
+    public MaterialFloatSetting[] materialSetting;
 
     [Header("Texture Settings")]
     public RenderTexture renderTexture;
@@ -89,14 +92,37 @@ public class RenderTargetManager : MonoSingletonScene<RenderTargetManager>
     [Header("Debug")]
     public bool RenderToTarget;
 
+    private List<float> _lastValues;
     protected virtual void PreRender()
     {
       activeStates.SetStates();
+      if (materialSetting != null)
+      {
+        if (_lastValues == null)
+        {
+          _lastValues = new List<float>();
+        }
+
+        _lastValues.Clear();
+        foreach (var setting in materialSetting)
+        {
+          _lastValues.Add(blitMaterial.GetFloat(setting.name));
+          blitMaterial.SetFloat(setting.name, setting.value);
+        }
+      }
     }
 
     protected virtual void PostRender()
     {
       activeStates.ResetStates();
+      if (materialSetting != null)
+      {
+        for (int i = 0; i < materialSetting.Length; i++)
+        {
+          blitMaterial.SetFloat(materialSetting[i].name, _lastValues[i]);
+        }
+        _lastValues.Clear();
+      }
     }
 
     protected abstract bool RenderToTexture(out RenderTexture rtOut);
@@ -224,4 +250,11 @@ public class RenderTargetManager : MonoSingletonScene<RenderTargetManager>
       return result;
     }
   }
+}
+
+[Serializable]
+public struct MaterialFloatSetting
+{
+  public string name;
+  public float value;
 }

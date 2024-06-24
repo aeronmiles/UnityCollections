@@ -86,4 +86,64 @@ public static class ColorExt
     for (int i = 0; i < l; i++) gs[i] = cs[i].grayscale;
     return gs;
   }
+
+  [MethodImpl(MethodImplOptions.AggressiveInlining)]
+  [BurstCompile]
+  public static int NumberOfPixelsOfColor(this Color[] pixels, Color color)
+  {
+    int count = 0;
+    foreach (var p in pixels)
+    {
+      if (p == color)
+      {
+        count++;
+      }
+    }
+    return count;
+  }
+
+  [MethodImpl(MethodImplOptions.AggressiveInlining)]
+  [BurstCompile]
+  public static int NumberOfPixelsOfColor(this Color32[] pixels, Color color)
+  {
+    int count = 0;
+    foreach (var p in pixels)
+    {
+      if (p == color)
+      {
+        count++;
+      }
+    }
+    return count;
+  }
+
+  [MethodImpl(MethodImplOptions.AggressiveInlining)]
+  [BurstCompile]
+  public static int NumberOfPixelsGreaterThan(this Color[] pixels, float threshold)
+  {
+    int count = 0;
+    foreach (var p in pixels)
+    {
+      if (p.grayscale > threshold)
+      {
+        count++;
+      }
+    }
+    return count;
+  }
+
+  [MethodImpl(MethodImplOptions.AggressiveInlining)]
+  [BurstCompile]
+  public static int NumberOfPixelsLessThan(this Color[] pixels, float threshold)
+  {
+    int count = 0;
+    foreach (var p in pixels)
+    {
+      if (p.grayscale < threshold)
+      {
+        count++;
+      }
+    }
+    return count;
+  }
 }

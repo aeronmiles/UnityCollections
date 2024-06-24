@@ -1,7 +1,25 @@
 using System;
+using System.Text;
 
 public static class ArrayExt
 {
+  private static readonly StringBuilder _StringBuilder = new StringBuilder(256);
+  public static string ToValueString<TValue>(this TValue[] array)
+  {
+    if (array == null || array.Length == 0)
+      return string.Empty;
+
+    _ = _StringBuilder.Clear();
+    for (int i = 0; i < array.Length; i++)
+    {
+      _ = _StringBuilder.Append(array[i]).Append(", ");
+    }
+
+    var str = _StringBuilder.ToString();
+    _ = _StringBuilder.Clear();
+    return str;
+  }
+
   public static int[] NotIn(this int[] values, int[] notIn)
   {
     int[] valuesNotIn = new int[] { };

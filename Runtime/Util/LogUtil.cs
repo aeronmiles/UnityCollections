@@ -1,32 +1,105 @@
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
+using System.Text;
 using AM.Unity.Statistics;
 using Unity.Mathematics;
 using UnityEngine;
+using Debug = UnityEngine.Debug;
 
 public static class LogUtil
 {
-  public abstract class Logger
+  public abstract class BaseLogHandler : ILogHandler, IDisposable
   {
-    protected readonly string name;
-    private float _maxLogFrequency;
-    public Logger(string name, float maxLogFrequency)
+    protected readonly StringBuilder stringBuilder;
+    protected readonly StringWriter stringWriter;
+
+    protected BaseLogHandler()
     {
-      this.name = name;
-      _maxLogFrequency = maxLogFrequency;
+      stringBuilder = new StringBuilder(256);
+      stringWriter = new StringWriter(stringBuilder);
     }
 
-    public void SetMaxLogFrequency(float maxLogFrequency) => _maxLogFrequency = maxLogFrequency;
+    public abstract void LogFormat(LogType logType, UnityEngine.Object context, string format, params object[] args);
+    public abstract void LogException(Exception exception, UnityEngine.Object context);
 
-    private float _lastLogTime;
-    protected void Log(string message)
+    protected void WriteLogHeader(LogType logType, UnityEngine.Object context)
     {
-      if (Time.time - _lastLogTime < _maxLogFrequency)
+      stringBuilder.Clear();
+      stringWriter.Write($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] [{logType}] ");
+      if (context != null)
+        stringWriter.Write($"[{context.name}] ");
+    }
+
+    protected void WriteExceptionDetails(Exception exception, UnityEngine.Object context)
+    {
+      stringBuilder.Clear();
+      stringWriter.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] [EXCEPTION]");
+      if (context != null)
+        stringWriter.WriteLine($"Context: {context.name}");
+      stringWriter.WriteLine($"Type: {exception.GetType().FullName}");
+      stringWriter.WriteLine($"Message: {exception.Message}");
+      stringWriter.WriteLine($"StackTrace: {exception.StackTrace}");
+      if (exception.InnerException != null)
       {
-        return;
+        stringWriter.WriteLine("Inner Exception:");
+        stringWriter.WriteLine($"Type: {exception.InnerException.GetType().FullName}");
+        stringWriter.WriteLine($"Message: {exception.InnerException.Message}");
+        stringWriter.WriteLine($"StackTrace: {exception.InnerException.StackTrace}");
       }
-      UnityEngine.Debug.Log(message);
-      _lastLogTime = Time.time;
+    }
+
+    public virtual void Dispose()
+    {
+      stringWriter.Dispose();
+    }
+  }
+
+  public class DebugLogHandler : BaseLogHandler
+  {
+    public override void LogFormat(LogType logType, UnityEngine.Object context, string format, params object[] args)
+    {
+      WriteLogHeader(logType, context);
+      stringWriter.WriteLine(format, args);
+      Debug.unityLogger.LogFormat(logType, context, stringBuilder.ToString());
+    }
+
+    public override void LogException(Exception exception, UnityEngine.Object context)
+    {
+      WriteExceptionDetails(exception, context);
+      Debug.unityLogger.LogException(exception, context);
+    }
+  }
+
+  public class FileLogHandler : BaseLogHandler
+  {
+    private readonly StreamWriter fileWriter;
+
+    public FileLogHandler(string filePath) : base()
+    {
+      fileWriter = new StreamWriter(filePath, true);
+    }
+
+    public override void LogFormat(LogType logType, UnityEngine.Object context, string format, params object[] args)
+    {
+      WriteLogHeader(logType, context);
+      stringWriter.WriteLine(format, args);
+      fileWriter.Write(stringBuilder);
+      fileWriter.Flush();
+    }
+
+    public override void LogException(Exception exception, UnityEngine.Object context)
+    {
+      WriteExceptionDetails(exception, context);
+      fileWriter.Write(stringBuilder);
+      fileWriter.Flush();
+    }
+
+    public override void Dispose()
+    {
+      base.Dispose();
+      fileWriter.Dispose();
     }
   }
 
@@ -37,7 +110,7 @@ public static class LogUtil
     private float _max;
     private List<float> _values = new List<float>();
 
-    public StatLogger(string name, float maxLogFrequency) : base(name, maxLogFrequency)
+    public StatLogger() : base(new DebugLogHandler())
     {
     }
 
@@ -60,10 +133,10 @@ public static class LogUtil
     public void StopStopwatch()
     {
       _stopwatch.Stop();
-      UnityEngine.Debug.Log($"{name}: Elapsed: {_stopwatch.ElapsedMilliseconds}ms");
+      Debug.Log($"Elapsed: {_stopwatch.ElapsedMilliseconds}ms");
 
     }
 
-    public void LogMinMaxCurrent() => Log($"{name}: min={_min}, max={_max}, Mean={_values.Mean()}");
+    public void LogMinMaxCurrent() => Log($"min={_min}, max={_max}, Mean={_values.Mean()}");
   }
 }

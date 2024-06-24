@@ -9,6 +9,9 @@
 #define PI 3.1415926536
 #endif
 
+float _GLOBAL_ScreenUV_FlipX = 0;
+float _GLOBAL_ScreenUV_FlipY = 0;
+
 // ========= Func ===========
 float3 mod289(float3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
 float2 mod289(float2 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
@@ -30,8 +33,8 @@ float2 uvScreen(float4 vert)
     float2 uvScreen;
     uvScreen.x = (vert.x / vert.w + 1.0) * 0.5; 
     uvScreen.y = (vert.y / vert.w + 1.0) * 0.5;
-    uvScreen.x = 1.0 - uvScreen.x; // Flip X
-    uvScreen.y = 1.0 - uvScreen.y; // Flip Y
+    uvScreen.x = lerp(uvScreen.x, 1.0 - uvScreen.x, _GLOBAL_ScreenUV_FlipX); // Flip X
+    uvScreen.y = lerp(uvScreen.y, 1.0 - uvScreen.y, _GLOBAL_ScreenUV_FlipY); // Flip Y
     return uvScreen;
 }
 
@@ -42,8 +45,8 @@ float2 uvScreen(float4 vert, float rotationRadians)
     float2 uvScreen;
     uvScreen.x = (vert.x / vert.w + 1.0) * 0.5; 
     uvScreen.y = (vert.y / vert.w + 1.0) * 0.5;
-    uvScreen.x = 1.0 - uvScreen.x; // Flip X
-    uvScreen.y = 1.0 - uvScreen.y; // Flip Y
+    uvScreen.x = lerp(uvScreen.x, 1.0 - uvScreen.x, _GLOBAL_ScreenUV_FlipX); // Flip X
+    uvScreen.y = lerp(uvScreen.y, 1.0 - uvScreen.y, _GLOBAL_ScreenUV_FlipY); // Flip Y
     
     // Apply inverse rotation to the UV coordinates
     float2x2 rotationMatrix = float2x2(cos(rotationRadians), sin(rotationRadians),
@@ -62,8 +65,8 @@ float2 uvScreen(float4 vert, float2 offset, float rotationRadians)
     float2 uvScreen;
     uvScreen.x = (vert.x / vert.w + 1.0) * 0.5 + offset.x; 
     uvScreen.y = (vert.y / vert.w + 1.0) * 0.5 + offset.y;
-    uvScreen.x = 1.0 - uvScreen.x; // Flip X
-    uvScreen.y = 1.0 - uvScreen.y; // Flip Y
+    uvScreen.x = lerp(uvScreen.x, 1.0 - uvScreen.x, _GLOBAL_ScreenUV_FlipX); // Flip X
+    uvScreen.y = lerp(uvScreen.y, 1.0 - uvScreen.y, _GLOBAL_ScreenUV_FlipY); // Flip Y
     
     // Apply inverse rotation to the UV coordinates
     float2x2 rotationMatrix = float2x2(cos(rotationRadians), sin(rotationRadians),
