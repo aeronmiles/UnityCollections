@@ -60,9 +60,18 @@ public static class LogUtil
   {
     public override void LogFormat(LogType logType, UnityEngine.Object context, string format, params object[] args)
     {
-      WriteLogHeader(logType, context);
-      stringWriter.WriteLine(format, args);
-      Debug.unityLogger.LogFormat(logType, context, stringBuilder.ToString());
+      try
+      {
+        WriteLogHeader(logType, context);
+        // string formattedMessage = string.Format(format, args);
+        Debug.unityLogger.LogFormat(logType, context, format, args);
+      }
+      catch (FormatException ex)
+      {
+        Debug.unityLogger.LogError("DebugLogHandler", $"FormatException in LogFormat: {ex.Message}");
+        Debug.unityLogger.LogError("DebugLogHandler", $"Format string: {format}");
+        Debug.unityLogger.LogError("DebugLogHandler", $"Arguments: {string.Join(", ", args)}");
+      }
     }
 
     public override void LogException(Exception exception, UnityEngine.Object context)
