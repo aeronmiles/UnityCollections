@@ -4,105 +4,104 @@ using UnityEngine;
 
 public static class TransformExt
 {
-    public static Transform[] SetPositionAndRotation(this Transform[] ts, Vector3[] ps, Quaternion[] rs)
+  public static Transform[] SetPositionAndRotation(this Transform[] ts, Vector3[] ps, Quaternion[] rs)
+  {
+    int l = ts.Length;
+    for (int i = 0; i < l; i++)
     {
-        int l = ts.Length;
-        for (int i = 0; i < l; i++)
-        {
-            ts[i].position = ps[i];
-            ts[i].rotation = rs[i];
-        }
-        return ts;
+      ts[i].position = ps[i];
+      ts[i].rotation = rs[i];
+    }
+    return ts;
+  }
+
+  public static Transform[] Children(this Transform transform)
+  {
+    var childs = transform.GetComponentsInChildren<Transform>(true);
+    Transform[] objs = new Transform[childs.Length - 1];
+    int l = childs.Length;
+    int x = 0;
+    for (int i = 0; i < l; i++)
+    {
+      if (childs[i].parent == transform)
+      {
+        objs[x++] = childs[i];
+      }
+    }
+    return objs;
+  }
+
+  // public static Transform[] Children(this Transform transform)
+  // {
+  //   var childs = transform.GetComponentsInChildren<Transform>(true);
+  //   List<Transform> objs = new List<Transform>();
+  //   foreach (var c in childs)
+  //   {
+  //     if (c.parent == transform) objs.Add(c);
+  //   }
+  //   return childs;
+  // }
+
+  public static Transform Closest(this Transform[] ts, Vector3 pos)
+  {
+    int l = ts.Length;
+
+    Transform closest = null;
+    float d = float.MaxValue;
+    for (int i = 0; i < l; i++)
+    {
+      float di = Vector3.Distance(pos, ts[i].position);
+      if (di < d)
+      {
+        closest = ts[i];
+        d = di;
+      }
     }
 
-    // public static Transform[] Children(this Transform transform)
-    // {
-    //     var childs = transform.GetComponentsInChildren<Transform>(true);
-    //     Transform[] objs = new Transform[0];
-    //     int l = childs.Length;
-    //     int x = 0;
-    //     for (int i = 0; i < l; i++)
-    //     {
-    //         if (childs[i].parent == transform)
-    //         {
-    //             Array.Resize(ref objs, x + 1);
-    //             objs[x++] = childs[i];
-    //         }
-    //     }
-    //     return objs;
-    // }
+    return closest;
+  }
 
-    public static Transform[] Children(this Transform transform)
+  public static Transform Closest(this List<Transform> ts, Vector3 pos)
+  {
+    int l = ts.Count;
+
+    Transform closest = null;
+    float d = float.MaxValue;
+    for (int i = 0; i < l; i++)
     {
-        return transform.GetComponentsInChildren<Transform>(true);
-        // List<Transform> objs = new List<Transform>();
-        // foreach (var c in childs)
-        // {
-        //     if (c.parent == transform) objs.Add(c);
-        // }
-        // return childs;
+      float di = Vector3.Distance(pos, ts[i].position);
+      if (di < d)
+      {
+        closest = ts[i];
+        d = di;
+      }
     }
 
-    public static Transform Closest(this Transform[] ts, Vector3 pos)
+    return closest;
+  }
+
+
+  public static Vector3[] Positions(this Transform[] ts)
+  {
+    int l = ts.Length;
+    Vector3[] positions = new Vector3[l];
+    for (int i = 0; i < l; i++)
     {
-        int l = ts.Length;
-
-        Transform closest = null;
-        float d = float.MaxValue;
-        for (int i = 0; i < l; i++)
-        {
-            float di = Vector3.Distance(pos, ts[i].position);
-            if (di < d)
-            {
-                closest = ts[i];
-                d = di;
-            }
-        }
-
-        return closest;
+      positions[i] = ts[i].position;
     }
 
-    public static Transform Closest(this List<Transform> ts, Vector3 pos)
+    return positions;
+  }
+
+  public static Vector3[] EulerAngles(this Transform[] ts)
+  {
+    int l = ts.Length;
+    Vector3[] angles = new Vector3[l];
+    for (int i = 0; i < l; i++)
     {
-        int l = ts.Count;
-
-        Transform closest = null;
-        float d = float.MaxValue;
-        for (int i = 0; i < l; i++)
-        {
-            float di = Vector3.Distance(pos, ts[i].position);
-            if (di < d)
-            {
-                closest = ts[i];
-                d = di;
-            }
-        }
-
-        return closest;
+      angles[i] = ts[i].eulerAngles;
     }
 
-
-    public static Vector3[] Positions(this Transform[] ts)
-    {
-        int l = ts.Length;
-        Vector3[] positions = new Vector3[l];
-        for (int i = 0; i < l; i++)
-        {
-            positions[i] = ts[i].position;
-        }
-
-        return positions;
-    }
-
-    public static Vector3[] EulerAngles(this Transform[] ts)
-    {
-        int l = ts.Length;
-        Vector3[] angles = new Vector3[l];
-        for (int i = 0; i < l; i++)
-        {
-            angles[i] = ts[i].eulerAngles;
-        }
-
-        return angles;
-    }
+    return angles;
+  }
 }
