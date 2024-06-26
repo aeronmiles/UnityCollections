@@ -61,8 +61,7 @@ public static class LogUtil
     public override void LogFormat(LogType logType, UnityEngine.Object context, string format, params object[] args)
     {
       WriteLogHeader(logType, context);
-      stringWriter.WriteLine(format, args);
-      Debug.unityLogger.LogFormat(logType, context, stringBuilder.ToString());
+      Debug.unityLogger.LogFormat(logType, context, format, args);
     }
 
     public override void LogException(Exception exception, UnityEngine.Object context)
