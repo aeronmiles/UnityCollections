@@ -7,6 +7,31 @@ using System.Runtime.Serialization.Formatters.Binary;
 
 public static class TextureUtil
 {
+  public static void SaveAsPNGToPath(this Texture2D texture, string path)
+  {
+    // Convert Texture2D to PNG byte array
+    byte[] pngData = texture.EncodeToPNG();
+    if (pngData == null)
+    {
+      Debug.LogError("Failed to convert texture to PNG.");
+      return;
+    }
+
+    // Get the path to the persistent data directory
+    Debug.Log("Saving texture to: " + path);
+
+    // Write the byte array to a file
+    try
+    {
+      File.WriteAllBytes(path, pngData);
+      Debug.Log("Texture saved successfully.");
+    }
+    catch (System.Exception e)
+    {
+      Debug.LogError("Failed to save texture to file: " + e.Message);
+    }
+  }
+
   public static bool LoadTextureFromPath(out Texture2D tex, string FilePath)
   {
     // Load a PNG or JPG file from disk to a Texture2D

@@ -4,8 +4,15 @@ using System.Runtime.InteropServices;
 
 public class CameraCapture : MonoBehaviour
 {
+#if UNITY_IOS
   [DllImport("__Internal")]
-  private static extern void _TakePhoto(string gameObjectName);
+  private static extern void _InitializeCamera(string gameObjectName);
+
+  [DllImport("__Internal")]
+  private static extern void _StartPreview();
+
+  [DllImport("__Internal")]
+  private static extern void _TakePhoto();
 
   [DllImport("__Internal")]
   private static extern void _SwitchCamera();
@@ -13,14 +20,55 @@ public class CameraCapture : MonoBehaviour
   [DllImport("__Internal")]
   private static extern void _SetColorTemperature(float temperature);
 
+  [DllImport("__Internal")]
+  private static extern void _StopCamera();
+
   public delegate void PhotoCaptureCallback(byte[] photoData);
   public event PhotoCaptureCallback OnPhotoCaptured;
+
+  public delegate void PreviewFrameCallback(Texture2D previewTexture);
+  public event PreviewFrameCallback OnPreviewTextureFrame;
+
+  private Texture2D previewTexture;
+  private Texture2D _temporaryTexture;
+
+  void Start()
+  {
+    if (Application.platform == RuntimePlatform.IPhonePlayer)
+    {
+      _InitializeCamera(gameObject.name);
+    }
+    else
+    {
+      Debug.LogWarning("Camera capture is only supported on iOS devices.");
+    }
+  }
+
+  void OnDisable()
+  {
+    if (Application.platform == RuntimePlatform.IPhonePlayer)
+    {
+      _StopCamera();
+    }
+  }
+
+  public void StartPreview()
+  {
+    if (Application.platform == RuntimePlatform.IPhonePlayer)
+    {
+      _StartPreview();
+    }
+    else
+    {
+      Debug.LogWarning("Camera preview is only supported on iOS devices.");
+    }
+  }
 
   public void TakePhoto()
   {
     if (Application.platform == RuntimePlatform.IPhonePlayer)
     {
-      _TakePhoto(gameObject.name);
+      _TakePhoto();
     }
     else
     {
@@ -53,25 +101,54 @@ public class CameraCapture : MonoBehaviour
   }
 
   [AOT.MonoPInvokeCallback(typeof(Action<string>))]
-  public void OnPhotoTaken(string encodedPhoto)
+  private void OnPhotoTaken(string encodedPhoto)
   {
-    Debug.Log("Photo taken, size: " + encodedPhoto.Length + " bytes");
     try
     {
       byte[] photoBytes = Convert.FromBase64String(encodedPhoto);
       Debug.Log($"Photo taken, size: {photoBytes.Length} bytes");
 
-      // Invoke the event with the photo data
       OnPhotoCaptured?.Invoke(photoBytes);
-
-      // Example: Create a texture from the photo
-      Texture2D texture = new Texture2D(2, 2);
-      texture.LoadImage(photoBytes);
-      // Use the texture as needed (e.g., display it on a UI element)
     }
     catch (Exception e)
     {
       Debug.LogError($"Error processing photo: {e.Message}");
     }
   }
+
+  [AOT.MonoPInvokeCallback(typeof(Action<string>))]
+  private void OnPreviewFrameReceived(string message)
+  {
+    string[] parts = message.Split('|');
+    if (parts.Length != 2) return;
+
+    string[] dimensions = parts[0].Split(',');
+    if (dimensions.Length != 3) return;
+
+    int width = int.Parse(dimensions[0]);
+    int height = int.Parse(dimensions[1]);
+    int bytesPerRow = int.Parse(dimensions[2]);
+
+    byte[] frameData = Convert.FromBase64String(parts[1]);
+
+    if (previewTexture == null || previewTexture.width != width || previewTexture.height != height)
+    {
+      if (previewTexture != null) Destroy(previewTexture);
+      previewTexture = new Texture2D(width, height, TextureFormat.RGBA32, false);
+    }
+
+    if (_temporaryTexture == null || _temporaryTexture.width != width || _temporaryTexture.height != height)
+    {
+      if (_temporaryTexture != null) Destroy(_temporaryTexture);
+      _temporaryTexture = new Texture2D(width, height, TextureFormat.BGRA32, false);
+    }
+
+    _temporaryTexture.LoadRawTextureData(frameData);
+    _temporaryTexture.Apply();
+
+    Graphics.ConvertTexture(_temporaryTexture, previewTexture);
+
+    OnPreviewTextureFrame?.Invoke(previewTexture);
+  }
+#endif
 }

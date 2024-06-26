@@ -7,8 +7,9 @@ extern "C" {
     void UnitySendMessage(const char* obj, const char* method, const char* msg);
 }
 
-@interface CameraDelegate : NSObject <AVCapturePhotoCaptureDelegate>
+@interface CameraDelegate : NSObject <AVCapturePhotoCaptureDelegate, AVCaptureVideoDataOutputSampleBufferDelegate>
 @property (nonatomic, strong) NSString* gameObjectName;
+@property (nonatomic, strong) AVCaptureVideoDataOutput* videoDataOutput;
 @end
 
 @implementation CameraDelegate
@@ -25,6 +26,27 @@ extern "C" {
     UnitySendMessage([self.gameObjectName UTF8String], "OnPhotoTaken", [encodedPhoto UTF8String]);
 }
 
+- (void)captureOutput:(AVCaptureOutput *)output didOutputSampleBuffer:(CMSampleBufferRef)sampleBuffer fromConnection:(AVCaptureConnection *)connection {
+    CVImageBufferRef imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer);
+    
+    CVPixelBufferLockBaseAddress(imageBuffer, 0);
+    
+    size_t width = CVPixelBufferGetWidth(imageBuffer);
+    size_t height = CVPixelBufferGetHeight(imageBuffer);
+    uint8_t *baseAddress = (uint8_t *)CVPixelBufferGetBaseAddress(imageBuffer);
+    size_t bytesPerRow = CVPixelBufferGetBytesPerRow(imageBuffer);
+    
+    NSData *data = [NSData dataWithBytes:baseAddress length:height * bytesPerRow];
+    NSString *encodedData = [data base64EncodedStringWithOptions:0];
+    
+    CVPixelBufferUnlockBaseAddress(imageBuffer, 0);
+    
+    NSString *dimensions = [NSString stringWithFormat:@"%zu,%zu,%zu", width, height, bytesPerRow];
+    NSString *message = [NSString stringWithFormat:@"%@|%@", dimensions, encodedData];
+    
+    UnitySendMessage([self.gameObjectName UTF8String], "OnPreviewFrameReceived", [message UTF8String]);
+}
+
 @end
 
 static AVCaptureSession *captureSession;
@@ -38,6 +60,10 @@ void InitializeCamera() {
     captureSession = [[AVCaptureSession alloc] init];
     [captureSession beginConfiguration];
     
+    if ([captureSession canSetSessionPreset:AVCaptureSessionPresetPhoto]) {
+        captureSession.sessionPreset = AVCaptureSessionPresetPhoto;
+    }
+    
     AVCaptureDevice *camera = [AVCaptureDevice defaultDeviceWithMediaType:AVMediaTypeVideo];
     NSError *error = nil;
     AVCaptureDeviceInput *input = [AVCaptureDeviceInput deviceInputWithDevice:camera error:&error];
@@ -50,12 +76,22 @@ void InitializeCamera() {
     [captureSession addInput:input];
     
     photoOutput = [[AVCapturePhotoOutput alloc] init];
+    
+    // Enable high resolution photos
+    photoOutput.highResolutionCaptureEnabled = YES;
+    
     [captureSession addOutput:photoOutput];
     
-    [captureSession commitConfiguration];
-    [captureSession startRunning];
-    
     delegate = [[CameraDelegate alloc] init];
+    
+    AVCaptureVideoDataOutput *videoDataOutput = [[AVCaptureVideoDataOutput alloc] init];
+    videoDataOutput.videoSettings = @{(id)kCVPixelBufferPixelFormatTypeKey: @(kCVPixelFormatType_32BGRA)};
+    videoDataOutput.alwaysDiscardsLateVideoFrames = YES;
+    [videoDataOutput setSampleBufferDelegate:delegate queue:dispatch_get_main_queue()];
+    [captureSession addOutput:videoDataOutput];
+    delegate.videoDataOutput = videoDataOutput;
+    
+    [captureSession commitConfiguration];
 }
 
 AVCaptureWhiteBalanceGains NormalizeGains(AVCaptureWhiteBalanceGains gains, AVCaptureDevice *device) {
@@ -90,11 +126,35 @@ void SetColorTemperature(float temperature) {
 }
 
 extern "C" {
-    void _TakePhoto(const char* gameObjectName) {
+    void _InitializeCamera(const char* gameObjectName) {
         InitializeCamera();
         delegate.gameObjectName = [NSString stringWithUTF8String:gameObjectName];
+    }
+    
+    void _StartPreview() {
+        if (captureSession && ![captureSession isRunning]) {
+            [captureSession startRunning];
+        }
+    }
+    
+    void _TakePhoto() {
+        if (!captureSession) return;
         
-        AVCapturePhotoSettings *settings = [AVCapturePhotoSettings photoSettings];
+        AVCapturePhotoSettings *settings = [AVCapturePhotoSettings photoSettingsWithFormat:@{
+            AVVideoCodecKey: AVVideoCodecTypeJPEG,
+            AVVideoCompressionPropertiesKey: @{
+                AVVideoQualityKey: @1.0
+            }
+        }];
+        
+        // Enable auto flash if available
+        if ([photoOutput.supportedFlashModes containsObject:@(AVCaptureFlashModeAuto)]) {
+            settings.flashMode = AVCaptureFlashModeAuto;
+        }
+        
+        // Enable high resolution capture
+        settings.highResolutionPhotoEnabled = YES;
+        
         [photoOutput capturePhotoWithSettings:settings delegate:delegate];
     }
     
@@ -116,5 +176,11 @@ extern "C" {
     
     void _SetColorTemperature(float temperature) {
         SetColorTemperature(temperature);
+    }
+    
+    void _StopCamera() {
+        if (captureSession && [captureSession isRunning]) {
+            [captureSession stopRunning];
+        }
     }
 }
