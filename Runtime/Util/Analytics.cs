@@ -56,7 +56,9 @@ public class Analytics : MonoSingleton<Analytics>
       _data.events.Clear();
       _sessionUTC = GetCurrentTimeMilliseconds();
     }
+#if DEBUG
     Debug.Log(evnt.ToString());
+#endif
   }
 
   private Coroutine _saveCoroutine;
