@@ -1,11 +1,12 @@
 using UnityEngine;
 using System;
+#if UNITY_IOS
 using System.Runtime.InteropServices;
 using System.Globalization;
+#endif
 
 public class CameraCapture : MonoBehaviour
 {
-#if UNITY_IOS
   public enum UIInterfaceOrientation
   {
     Unknown = 0,
@@ -14,6 +15,7 @@ public class CameraCapture : MonoBehaviour
     LandscapeLeft = 3,
     LandscapeRight = 4
   }
+#if UNITY_IOS
   [DllImport("__Internal")]
   private static extern void UnityBridge_setup();
   [DllImport("__Internal")]
@@ -34,6 +36,7 @@ public class CameraCapture : MonoBehaviour
   private static extern void _UpdateOrientation(int orientation);
   [DllImport("__Internal")]
   private static extern IntPtr _GetCameraOrientationAndMirrored();
+#endif
 
   public delegate void PhotoCaptureCallback(byte[] photoData);
   public event PhotoCaptureCallback OnPhotoCaptured;
@@ -46,18 +49,22 @@ public class CameraCapture : MonoBehaviour
 
   private void Start()
   {
-    if (Application.platform == RuntimePlatform.IPhonePlayer)
-    {
+#if UNITY_IOS
       UnityBridge_setup();
       _InitializeCamera(gameObject.name);
-    }
-    else
-    {
-      Debug.LogWarning("CameraCapture :: Camera capture is only supported on iOS devices.");
-    }
+#else
+    Debug.LogWarning("CameraCapture :: Camera capture is only supported on iOS devices.");
+#endif
   }
 
+#if UNITY_IOS
   private void Update()
+  {
+    UpdateOrientation();
+    GetCameraOrientationAndMirrored();
+  }
+
+  private void UpdateOrientation()
   {
     if (Input.deviceOrientation == DeviceOrientation.LandscapeLeft)
     {
@@ -75,76 +82,66 @@ public class CameraCapture : MonoBehaviour
     {
       _UpdateOrientation((int)UIInterfaceOrientation.PortraitUpsideDown);
     }
-    GetCameraOrientationAndMirrored();
   }
+#endif
 
   private void OnDisable()
   {
-    if (Application.platform == RuntimePlatform.IPhonePlayer)
-    {
+#if UNITY_IOS
       _StopCamera();
-    }
+#endif
   }
 
   public void StartPreview()
   {
-    if (Application.platform == RuntimePlatform.IPhonePlayer)
-    {
+#if UNITY_IOS
       _StartPreview();
-    }
-    else
-    {
-      Debug.LogWarning("CameraCapture :: Camera preview is only supported on iOS devices.");
-    }
+#else
+    Debug.LogWarning("CameraCapture :: Camera preview is only supported on iOS devices.");
+#endif
   }
 
   public void GetCameraOrientationAndMirrored()
   {
+#if UNITY_IOS
     IntPtr ptr = _GetCameraOrientationAndMirrored();
     string result = Marshal.PtrToStringAnsi(ptr);
     Debug.Log("Camera Orientation and Mirrored: " + result);
     Marshal.FreeHGlobal(ptr);
+#endif
   }
 
   public void TakePhoto()
   {
-    if (Application.platform == RuntimePlatform.IPhonePlayer)
-    {
-      _TakePhoto();
-    }
-    else
-    {
-      Debug.LogWarning("CameraCapture :: Photo capture is only supported on iOS devices.");
-    }
+#if UNITY_IOS
+    _TakePhoto();
+#else
+    Debug.LogWarning("CameraCapture :: Photo capture is only supported on iOS devices.");
+#endif
   }
 
   public void SwitchCamera()
   {
-    if (Application.platform == RuntimePlatform.IPhonePlayer)
-    {
+#if UNITY_IOS
       _SwitchCamera();
-    }
-    else
-    {
-      Debug.LogWarning("CameraCapture :: Camera switching is only supported on iOS devices.");
-    }
+#else
+    Debug.LogWarning("CameraCapture :: Camera switching is only supported on iOS devices.");
+#endif
   }
 
   public void SetColorTemperature(float temperature)
   {
-    if (Application.platform == RuntimePlatform.IPhonePlayer)
-    {
-      _SetColorTemperature(temperature);
-    }
-    else
-    {
-      Debug.LogWarning("CameraCapture :: Color temperature adjustment is only supported on iOS devices.");
-    }
+#if UNITY_IOS
+    _SetColorTemperature(temperature);
+#else
+    Debug.LogWarning("CameraCapture :: Color temperature adjustment is only supported on iOS devices.");
+#endif
   }
 
   [AOT.MonoPInvokeCallback(typeof(Action<string>))]
   private void OnPhotoTaken(string pointerData)
   {
+#if UNITY_IOS
     try
     {
       Debug.Log($"CameraCapture :: Received photo data: {pointerData}");
@@ -188,11 +185,13 @@ public class CameraCapture : MonoBehaviour
     {
       Debug.LogError($"CameraCapture :: Error processing photo data: {e.Message}\nStack Trace: {e.StackTrace}");
     }
+#endif
   }
 
   [AOT.MonoPInvokeCallback(typeof(Action<string>))]
   private void OnPreviewFrameReceived(string pointerData)
   {
+#if UNITY_IOS
     try
     {
       // Debug.Log($"CameraCapture :: Received pointer data: {pointerData}");
@@ -238,10 +237,12 @@ public class CameraCapture : MonoBehaviour
     {
       Debug.LogError($"CameraCapture :: Error processing frame data: {e.Message}\nStack Trace: {e.StackTrace}");
     }
+#endif
   }
 
   private void UpdateTexture(byte[] frameData, int width, int height)
   {
+#if UNITY_IOS
     lock (textureLock)
     {
       if (previewTexture == null || previewTexture.width != width || previewTexture.height != height)
@@ -258,7 +259,7 @@ public class CameraCapture : MonoBehaviour
 
       UnityMainThreadDispatcher.I.Enqueue(() => OnPreviewTextureUpdated?.Invoke(previewTexture));
     }
+#endif
   }
 
-#endif
 }
