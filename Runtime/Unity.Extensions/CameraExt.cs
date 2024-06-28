@@ -228,7 +228,6 @@ public static class CameraExt
     return true;
   }
 
-
   public static bool Blit(this Camera camera, ref RenderTexture rtOut, Material blitMat = null, bool linear = true)
   {
     if (camera == null || rtOut == null)

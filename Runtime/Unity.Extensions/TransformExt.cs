@@ -31,17 +31,6 @@ public static class TransformExt
     return objs;
   }
 
-  // public static Transform[] Children(this Transform transform)
-  // {
-  //   var childs = transform.GetComponentsInChildren<Transform>(true);
-  //   List<Transform> objs = new List<Transform>();
-  //   foreach (var c in childs)
-  //   {
-  //     if (c.parent == transform) objs.Add(c);
-  //   }
-  //   return childs;
-  // }
-
   public static Transform Closest(this Transform[] ts, Vector3 pos)
   {
     int l = ts.Length;

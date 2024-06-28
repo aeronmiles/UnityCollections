@@ -1,9 +1,10 @@
-Shader "Hidden/BlitCropped"
+Shader "AM/Unlit/TileRotate"
 {
     Properties
     {
         _MainTex ("Texture", 2D) = "white" {}
-        _CropRect ("Crop Rect", Vector) = (0,0,1,1) // x, y, width, height in normalized coordinates
+        _TileXY ("Tile XY", Vector) = (1, 1, 0, 0)
+        _RotationRadians ("Rotation Radians", Float) = 0
     }
     SubShader
     {
@@ -29,7 +30,8 @@ Shader "Hidden/BlitCropped"
             };
 
             sampler2D _MainTex;
-            float4 _CropRect;
+            float2 _TileXY;
+            float _RotationRadians;
 
             v2f vert (appdata v)
             {
@@ -41,9 +43,9 @@ Shader "Hidden/BlitCropped"
 
             fixed4 frag (v2f i) : SV_Target
             {
-                // Calculate UVs based on crop rect
-                float2 croppedUV = float2(_CropRect.x + i.uv.x * _CropRect.z, _CropRect.y + i.uv.y * _CropRect.w);
-                return tex2D(_MainTex, croppedUV);
+                float2 uv = i.uv;
+                uv = tileRotate2D(uv, _TileXY.x, _TileXY.y, _RotationRadians);
+                return tex2D(_MainTex, uv);
             }
             ENDCG
         }

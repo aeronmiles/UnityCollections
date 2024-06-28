@@ -1,9 +1,6 @@
-using System.CodeDom;
 using System.Collections;
 using System.IO;
-using Unity.Mathematics;
 using UnityEngine;
-using UnityEngine.Rendering;
 
 public static class TextureExt
 {
@@ -124,17 +121,89 @@ public static class TextureExt
     mipTexOut.Apply(mipChains);
   }
 
+  private static Material _TileRotate;
+  public static bool BlitTiledRotated(this Texture sourceTex, Texture2D texOut, float tileX, float tileY, float angle)
+  {
+    if (sourceTex == null || texOut == null)
+    {
+      if (sourceTex == null)
+        Debug.LogError("BlitFlippedRotated: sourceTex is null.");
+      if (texOut == null)
+        Debug.LogError("BlitFlippedRotated: texOut is null.");
+      return false;
+    }
+
+    // Render to texture
+    var rt = texOut.GetTemporaryRT();
+
+    // Set up the custom blit material
+    if (_TileRotate == null)
+    {
+      _TileRotate = new Material(Shader.Find("AM/Unlit/TileRotate"));
+    }
+    _TileRotate.SetTexture("_MainTex", rt);
+    _TileRotate.SetVector("_TileXY", new Vector4(tileX, tileY, 0.0f, 0.0f));
+    _TileRotate.SetFloat("_RotationRadians", Mathf.Deg2Rad * angle);
+
+    // Perform the blit with cropping
+    Graphics.Blit(sourceTex, rt, _TileRotate);
+
+    var cachedRT = RenderTexture.active;
+    RenderTexture.active = rt;
+    texOut.ReadPixels(new Rect(0, 0, texOut.width, texOut.height), 0, 0, false);
+    texOut.Apply();
+
+    // Cleanup
+    RenderTexture.ReleaseTemporary(rt);
+    RenderTexture.active = cachedRT;
+
+    return true;
+  }
+
+  public static bool TileRotate(this Texture2D tex, float tileX, float tileY, float angle)
+  {
+    if (tex == null)
+    {
+      Debug.LogError("FlipRotate: tex is null.");
+      return false;
+    }
+
+    // Render to texture
+    var rt = tex.GetTemporaryRT();
+
+    // Set up the custom blit material
+    if (_TileRotate == null)
+    {
+      _TileRotate = new Material(Shader.Find("AM/Unlit/TileRotate"));
+    }
+    _TileRotate.SetTexture("_MainTex", rt);
+    _TileRotate.SetVector("_TileXY", new Vector4(tileX, tileY, 0.0f, 0.0f));
+    _TileRotate.SetFloat("_RotationRadians", Mathf.Deg2Rad * angle);
+
+    // Perform the blit with cropping
+    Graphics.Blit(tex, rt, _TileRotate);
+
+    var cachedRT = RenderTexture.active;
+    RenderTexture.active = rt;
+    tex.ReadPixels(new Rect(0, 0, tex.width, tex.height), 0, 0, false);
+    tex.Apply();
+
+    // Cleanup
+    RenderTexture.ReleaseTemporary(rt);
+    RenderTexture.active = cachedRT;
+
+    return true;
+  }
+
   /// <summary>
   /// blit sourceTex cropped to texOut size
   /// </summary>
   /// <typeparam name="Texture"></typeparam>
   /// <typeparam name="RenderTexture"></typeparam>
   /// <returns></returns>
-  public static void BlitToTexCropped(this Texture sourceTex, Texture2D texOut, Material mat = null, RenderTextureFormat format = RenderTextureFormat.ARGBHalf, bool mipChains = false)
+  public static void BlitToTexCropped(this Texture sourceTex, Texture2D texOut, Material mat = null, bool mipChains = false)
   {
-    int sourceWidth = sourceTex.width;
-    int sourceHeight = sourceTex.height;
-    var rt = RenderTexture.GetTemporary(sourceWidth, sourceHeight, 32, format);
+    var rt = sourceTex.GetTemporaryRT();
 
     RenderTexture.active = rt;
     if (mat != null)
@@ -144,8 +213,8 @@ public static class TextureExt
 
     int w = texOut.width;
     int h = texOut.height;
-    int x = (sourceWidth >> 1) - (w >> 1);
-    int y = (sourceHeight >> 1) - (h >> 1);
+    int x = (sourceTex.width >> 1) - (w >> 1);
+    int y = (sourceTex.height >> 1) - (h >> 1);
     texOut.ReadPixels(new Rect(x, y, w, h), 0, 0, false);
     texOut.Apply(mipChains);
     RenderTexture.active = null;
@@ -162,12 +231,12 @@ public static class TextureExt
   /// <param name="mat"></param>
   /// <param name="format"></param> <summary>
   /// </summary>
-  public static void BlitToTexCentre(this Texture sourceTex, Texture2D texOut, Material mat = null, RenderTextureFormat format = RenderTextureFormat.ARGBHalf, bool mipChains = false)
+  public static void BlitToTexCentre(this Texture sourceTex, Texture2D texOut, Material mat = null, bool mipChains = false)
   {
-    int sourceWidth = sourceTex.width;
-    int sourceHeight = sourceTex.height;
+    // int sourceWidth = sourceTex.width;
+    // int sourceHeight = sourceTex.height;
 
-    var rt = RenderTexture.GetTemporary(sourceWidth, sourceHeight, 0, format);
+    var rt = sourceTex.GetTemporaryRT();
     RenderTexture.active = rt;
     GL.Clear(true, true, Color.black);
 
@@ -181,11 +250,11 @@ public static class TextureExt
     float scaleY = (float)texOut.height / sourceTex.height;
     float minScale = Mathf.Min(scaleX, scaleY); // Ensures the  source texture fits entirely within texOut
 
-    // Calculate offsets to center the scaled source texture within texOut
-    float offsetX = (texOut.width - (sourceTex.width * minScale)) * 0.5f;
-    float offsetY = (texOut.height - (sourceTex.height * minScale)) * 0.5f;
+    // // Calculate offsets to center the scaled source texture within texOut
+    // float offsetX = (texOut.width - (sourceTex.width * minScale)) * 0.5f;
+    // float offsetY = (texOut.height - (sourceTex.height * minScale)) * 0.5f;
 
-    var texRT = RenderTexture.GetTemporary(texOut.width, texOut.height, 0, format);
+    var texRT = texOut.GetTemporaryRT();
     Graphics.Blit(rt, texRT);
 
     RenderTexture.active = texRT;
@@ -220,7 +289,7 @@ public static class TextureExt
     float offsetY = (1.0f - scaleHeight) / 2.0f;
 
     // Create a temporary RenderTexture
-    RenderTexture tempRT = RenderTexture.GetTemporary(destination.width, destination.height, 0, RenderTextureFormat.Default, RenderTextureReadWrite.Linear);
+    RenderTexture tempRT = destination.GetTemporaryRT();
 
     // Set the active RenderTexture
     RenderTexture.active = tempRT;
@@ -296,9 +365,7 @@ public static class TextureExt
   /// <param name="texOut"></param>
   public static void BlitToTex(this Texture sourceTex, Texture2D texOut, Material mat = null, bool mipChains = false)
   {
-    int w = texOut.width;
-    int h = texOut.height;
-    var rt = RenderTexture.GetTemporary(w, h, 0, sourceTex.graphicsFormat);
+    var rt = sourceTex.GetTemporaryRT();
     var cachedRT = RenderTexture.active;
 
     RenderTexture.active = rt;
@@ -309,7 +376,7 @@ public static class TextureExt
 
     // @TODO: Optimize
     // Graphics.CopyTexture(rt, 0, 0, texOut, 0, 0);
-    texOut.ReadPixels(new Rect(0, 0, w, h), 0, 0, false);
+    texOut.ReadPixels(new Rect(0, 0, texOut.width, texOut.height), 0, 0, false);
     texOut.Apply(mipChains);
 
     // Cleanup

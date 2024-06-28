@@ -26,6 +26,11 @@ float2 rotate2D(float2 vec, float angle)
   return float2(cos(angle) * vec.x - sin(angle) * vec.y, sin(angle) * vec.x + cos(angle) * vec.y);
 }
 
+float2 tileRotate2D(float2 vec, float tileX = 1.0, float tileY = 1.0, float angleRad = 0.0) 
+{ 
+  return rotate2D(float2(tileX * vec.x, tileY * vec.y), angleRad);
+}
+
 // Approximate screen space UVs (note: not 100% accurate with perspective)
 float2 uvScreen(float4 vert)
 {
