@@ -50,8 +50,8 @@ public class CameraCapture : MonoBehaviour
   private void Start()
   {
 #if UNITY_IOS
-      UnityBridge_setup();
-      _InitializeCamera(gameObject.name);
+    UnityBridge_setup();
+    _InitializeCamera(gameObject.name);
 #else
     Debug.LogWarning("CameraCapture :: Camera capture is only supported on iOS devices.");
 #endif
@@ -88,14 +88,14 @@ public class CameraCapture : MonoBehaviour
   private void OnDisable()
   {
 #if UNITY_IOS
-      _StopCamera();
+    _StopCamera();
 #endif
   }
 
   public void StartPreview()
   {
 #if UNITY_IOS
-      _StartPreview();
+    _StartPreview();
 #else
     Debug.LogWarning("CameraCapture :: Camera preview is only supported on iOS devices.");
 #endif
@@ -123,7 +123,7 @@ public class CameraCapture : MonoBehaviour
   public void SwitchCamera()
   {
 #if UNITY_IOS
-      _SwitchCamera();
+    _SwitchCamera();
 #else
     Debug.LogWarning("CameraCapture :: Camera switching is only supported on iOS devices.");
 #endif
