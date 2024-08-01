@@ -39,7 +39,7 @@ public static class CameraExt
     camera.projectionMatrix = camera.CroppedProjectionMatrix(bounds);
 
     camera.targetTexture = rtOut;
-    camera.RenderDontRestore();
+    camera.Render();
     rtOut.BlitMaterial(blitMat);
 
     camera.targetTexture = cachedTargetTexture;
@@ -90,7 +90,7 @@ public static class CameraExt
 
     // Render to texture
     camera.targetTexture = rt;
-    camera.RenderDontRestore();
+    camera.Render();
 
     // @TODO: optimize - remove memalloc
     Debug.LogWarning("BlitCroppedToScreenBounds: Memory allocation detected. Consider using a pooled texture.");
@@ -158,7 +158,7 @@ public static class CameraExt
   //   var rtScreen = RenderTexture.GetTemporary(width, height, 0, rtOut.format);
 
   //   camera.targetTexture = rtScreen;
-  //   camera.RenderDontRestore();
+  //   camera.Render();
 
   //   var tex = new Texture2D((int)bounds.width, (int)bounds.height, rtOut.ToTextureFormat(), rtOut.useMipMap, linear)
   //   {
@@ -204,7 +204,7 @@ public static class CameraExt
     // Render to texture
     var rtScreen = RenderTexture.GetTemporary(width, height, 0, rtOut.format);
     camera.targetTexture = rtScreen;
-    camera.RenderDontRestore();
+    camera.Render();
 
     // Calculate normalized crop rectangle
     Rect normalizedRect = new Rect(bounds.x / width, bounds.y / height, bounds.width / width, bounds.height / height);
@@ -212,6 +212,7 @@ public static class CameraExt
     // Set up the custom blit material
     if (_BlitCroppedMaterial == null)
     {
+      Debug.LogWarning("Ensure Hidden/BlitCropped shader is included in Graphics included shaders.");
       _BlitCroppedMaterial = new Material(Shader.Find("Hidden/BlitCropped"));
     }
     _BlitCroppedMaterial.SetTexture("_MainTex", rtScreen);
@@ -243,7 +244,7 @@ public static class CameraExt
     var cachedTargetTexture = camera.targetTexture;
 
     camera.targetTexture = rtOut;
-    camera.RenderDontRestore();
+    camera.Render();
 
     rtOut.BlitMaterial(blitMat);
 
@@ -276,7 +277,7 @@ public static class CameraExt
     var renderTexture = tex.GetTemporaryRT();
     camera.targetTexture = renderTexture;
 
-    camera.RenderDontRestore();
+    camera.Render();
     RenderTexture.active = camera.targetTexture;
     tex.ReadPixels(new Rect(0, 0, tex.width, tex.height), 0, 0);
     tex.Apply(tex.mipmapCount > 1);

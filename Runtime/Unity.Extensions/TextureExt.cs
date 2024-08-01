@@ -1,5 +1,11 @@
+using System;
 using System.Collections;
 using System.IO;
+using System.Threading.Tasks;
+using Unity.Burst;
+using Unity.Collections;
+using Unity.Jobs;
+using Unity.Mathematics;
 using UnityEngine;
 
 public static class TextureExt
@@ -121,33 +127,135 @@ public static class TextureExt
     mipTexOut.Apply(mipChains);
   }
 
-  private static Material _TileRotate;
-  public static bool BlitTiledRotated(this Texture sourceTex, Texture2D texOut, float tileX, float tileY, float angle)
+  private static Material _TileRotateMaterial;
+  private static Material TileRotateMaterial
   {
-    if (sourceTex == null || texOut == null)
+    get
     {
-      if (sourceTex == null)
-        Debug.LogError("BlitFlippedRotated: sourceTex is null.");
-      if (texOut == null)
-        Debug.LogError("BlitFlippedRotated: texOut is null.");
-      return false;
+      if (_TileRotateMaterial == null)
+      {
+        var shader = Shader.Find("AM/Unlit/TileRotate");
+        if (shader == null)
+        {
+          Debug.LogError("Failed to find TileRotate shader. Make sure it's included in the project and the name is correct.");
+        }
+        else
+        {
+          _TileRotateMaterial = new Material(shader);
+        }
+      }
+      return _TileRotateMaterial;
+    }
+  }
+
+  [BurstCompile]
+  public static void Rotate90(this Texture2D sourceTex, Texture2D outTex, bool counterClockwise = false)
+  {
+    if (sourceTex == null)
+    {
+      throw new ArgumentNullException(nameof(sourceTex), "Source texture is null.");
+    }
+    else if (outTex == null)
+    {
+      throw new ArgumentNullException(nameof(outTex), "Output texture is null.");
+    }
+    else if (sourceTex.width != outTex.height || sourceTex.height != outTex.width)
+    {
+      throw new ArgumentException("Output texture dimensions must be swapped source texture dimensions.");
     }
 
-    // Render to texture
-    var rt = texOut.GetTemporaryRT();
+    var sourcePixels = sourceTex.GetRawTextureData<Color32>();
+    var outputPixels = new NativeArray<Color32>(outTex.width * outTex.height, Allocator.TempJob);
 
-    // Set up the custom blit material
-    if (_TileRotate == null)
+    var job = new Rotate90Job
     {
-      _TileRotate = new Material(Shader.Find("AM/Unlit/TileRotate"));
+      sourcePixels = sourcePixels, // Use the temp array
+      outputPixels = outputPixels,
+      sourceWidth = sourceTex.width,
+      sourceHeight = sourceTex.height,
+      counterClockwise = counterClockwise
+    };
+
+    job.Schedule(outputPixels.Length, 64).Complete(); // Adjust batch size as needed
+
+    outTex.LoadRawTextureData(outputPixels);
+    outTex.Apply();
+
+    outputPixels.Dispose();
+  }
+
+  [BurstCompile]
+  private struct Rotate90Job : IJobParallelFor
+  {
+    [ReadOnly] public NativeArray<Color32> sourcePixels;
+    [WriteOnly] public NativeArray<Color32> outputPixels;
+    public int sourceWidth;
+    public int sourceHeight;
+    public bool counterClockwise;
+
+    public void Execute(int outputIndex)
+    {
+      // int outputWidth = sourceHeight; // Swapped dimensions
+      // int outputHeight = sourceWidth;
+
+      // int x = outputIndex / sourceHeight;
+      // int y = outputIndex % sourceHeight;
+
+      // int sourceX = y;
+      // int sourceY = sourceHeight - 1 - x;
+
+      // int sourceIndex = (sourceY * sourceWidth) + sourceX;
+      // outputPixels[outputIndex] = sourcePixels[sourceIndex];
+      int x = outputIndex / sourceHeight;
+      int y = outputIndex % sourceHeight;
+
+      int newRow = sourceHeight - y - 1;
+      int newCol = x;
+
+      outputPixels[(newRow * sourceWidth) + newCol] = sourcePixels[(x * sourceHeight) + y];
+
     }
-    _TileRotate.SetTexture("_MainTex", rt);
-    _TileRotate.SetVector("_TileXY", new Vector4(tileX, tileY, 0.0f, 0.0f));
-    _TileRotate.SetFloat("_RotationRadians", Mathf.Deg2Rad * angle);
+  }
 
-    // Perform the blit with cropping
-    Graphics.Blit(sourceTex, rt, _TileRotate);
+  public static void BlitTileRotate(this Texture2D sourceTex, Texture2D texOut, float tileX, float tileY, float angle)
+  {
+    if (sourceTex == null)
+    {
+      throw new ArgumentNullException(nameof(sourceTex), "Source texture is null.");
+    }
+    else if (texOut == null)
+    {
+      throw new ArgumentNullException(nameof(texOut), "Output texture is null.");
+    }
 
+    float sourceAspect = (float)sourceTex.width / sourceTex.height;
+    float outputAspect = (float)texOut.width / texOut.height;
+
+    // Calculate scaling factors to fit the source texture into the output texture
+    float scaleX = 1f, scaleY = 1f;
+    if (sourceAspect > outputAspect)
+    {
+      // Source is wider, scale to fit height
+      scaleY = outputAspect / sourceAspect;
+    }
+    else
+    {
+      // Source is taller, scale to fit width
+      scaleX = sourceAspect / outputAspect;
+    }
+
+    // Apply tiling to the calculated scale
+    scaleX *= tileX;
+    scaleY *= tileY;
+
+    var rt = RenderTexture.GetTemporary(texOut.width, texOut.height, 0, RenderTextureFormat.ARGB32);
+
+    TileRotateMaterial.SetTexture("_MainTex", sourceTex);
+    TileRotateMaterial.SetVector("_TileXY", new Vector4(scaleX, scaleY, 0.0f, 0.0f));
+    TileRotateMaterial.SetFloat("_RotationRadians", Mathf.Deg2Rad * angle);
+    TileRotateMaterial.SetFloat("_AspectRatio", sourceAspect / outputAspect);
+
+    Graphics.Blit(sourceTex, rt, TileRotateMaterial);
     var cachedRT = RenderTexture.active;
     RenderTexture.active = rt;
     texOut.ReadPixels(new Rect(0, 0, texOut.width, texOut.height), 0, 0, false);
@@ -156,32 +264,206 @@ public static class TextureExt
     // Cleanup
     RenderTexture.ReleaseTemporary(rt);
     RenderTexture.active = cachedRT;
+  }
 
-    return true;
+  [BurstCompile]
+  private struct TileRotateJob : IJobParallelFor
+  {
+    [ReadOnly] public NativeArray<Color32> inputPixels;
+    [WriteOnly] public NativeArray<Color32> outputPixels;
+    public int2 inputDimensions;
+    public int2 outputDimensions;
+    public float2 scale;
+    public float rotationRadians;
+    public float aspectRatio;
+
+    public void Execute(int index)
+    {
+      int2 outputCoord = new int2(index % outputDimensions.x, index / outputDimensions.x);
+      float2 uv = new float2(outputCoord.x / (float)(outputDimensions.x - 1), outputCoord.y / (float)(outputDimensions.y - 1));
+
+      // Center UV
+      uv -= 0.5f;
+
+      // Apply rotation
+      float s = math.sin(rotationRadians);
+      float c = math.cos(rotationRadians);
+      float2x2 rotationMatrix = new float2x2(c, -s, s, c);
+      uv = math.mul(rotationMatrix, uv);
+
+      // Apply scaling and aspect ratio adjustment
+      uv.y *= aspectRatio;
+      uv *= scale;
+      // Move UV back to [0, 1] range
+      uv += 0.5f;
+
+      // Clamp UV coordinates
+      uv = math.clamp(uv, 0, 1);
+
+      // Sample the input texture
+      int2 inputCoord = new int2((int)(uv.x * (inputDimensions.x - 1)), (int)(uv.y * (inputDimensions.y - 1)));
+      int inputIndex = inputCoord.y * inputDimensions.x + inputCoord.x;
+
+      outputPixels[index] = inputPixels[inputIndex];
+    }
+  }
+
+  public static void JobifiedTileRotate(this Texture2D sourceTex, Texture2D texOut, float tileX, float tileY, float angle)
+  {
+    if (sourceTex == null || texOut == null)
+    {
+      throw new ArgumentNullException(sourceTex == null ? nameof(sourceTex) : nameof(texOut), "Source or output texture is null.");
+    }
+
+    // Ensure the textures are readable
+    if (!sourceTex.isReadable || !texOut.isReadable)
+    {
+      throw new InvalidOperationException("Textures must be marked as readable in import settings.");
+    }
+
+    float sourceAspect = (float)sourceTex.width / sourceTex.height;
+    float outputAspect = (float)texOut.width / texOut.height;
+
+    // Calculate scaling factors to fit the source texture into the output texture
+    float scaleX = 1f, scaleY = 1f;
+    if (sourceAspect > outputAspect)
+    {
+      // Source is wider, scale to fit height
+      scaleY = outputAspect / sourceAspect;
+    }
+    else
+    {
+      // Source is taller, scale to fit width
+      scaleX = sourceAspect / outputAspect;
+    }
+
+    // Apply tiling to the calculated scale
+    scaleX *= tileX;
+    scaleY *= tileY;
+
+    // Get native arrays from texture data
+    NativeArray<Color32> sourcePixels = sourceTex.GetRawTextureData<Color32>();
+    NativeArray<Color32> outputPixels = texOut.GetRawTextureData<Color32>();
+
+    var job = new TileRotateJob
+    {
+      inputPixels = sourcePixels,
+      outputPixels = outputPixels,
+      inputDimensions = new int2(sourceTex.width, sourceTex.height),
+      outputDimensions = new int2(texOut.width, texOut.height),
+      scale = new float2(scaleX, scaleY),
+      rotationRadians = angle * Mathf.Deg2Rad,
+      aspectRatio = sourceAspect / outputAspect
+    };
+
+    JobHandle handle = job.Schedule(outputPixels.Length, 64);
+    handle.Complete();
+
+    // Apply changes to the output texture
+    texOut.Apply();
+  }
+
+  public static async void JobifiedTileRotateAsync(this Texture2D sourceTex, Texture2D texOut, float tileX, float tileY, float angle, Action<Texture2D> onSuccess, Action<string> onError)
+  {
+    try
+    {
+      bool result = await Task.Run(() =>
+      {
+        if (sourceTex == null || texOut == null)
+        {
+          throw new ArgumentNullException(sourceTex == null ? nameof(sourceTex) : nameof(texOut), "Source or output texture is null.");
+        }
+
+        if (!sourceTex.isReadable || !texOut.isReadable)
+        {
+          throw new InvalidOperationException("Textures must be marked as readable in import settings.");
+        }
+
+        float sourceAspect = (float)sourceTex.width / sourceTex.height;
+        float outputAspect = (float)texOut.width / texOut.height;
+
+        float scaleX = 1f, scaleY = 1f;
+        if (sourceAspect > outputAspect)
+        {
+          scaleY = outputAspect / sourceAspect;
+        }
+        else
+        {
+          scaleX = sourceAspect / outputAspect;
+        }
+
+        scaleX *= tileX;
+        scaleY *= tileY;
+
+        NativeArray<Color32> sourcePixels = sourceTex.GetRawTextureData<Color32>();
+        NativeArray<Color32> outputPixels = texOut.GetRawTextureData<Color32>();
+
+        try
+        {
+          var job = new TileRotateJob
+          {
+            inputPixels = sourcePixels,
+            outputPixels = outputPixels,
+            inputDimensions = new int2(sourceTex.width, sourceTex.height),
+            outputDimensions = new int2(texOut.width, texOut.height),
+            scale = new float2(1f / scaleX, 1f / scaleY),
+            rotationRadians = angle * Mathf.Deg2Rad,
+            aspectRatio = sourceAspect / outputAspect
+          };
+
+          JobHandle handle = job.Schedule(outputPixels.Length, 64);
+          handle.Complete();
+
+          return true;
+        }
+        catch (Exception e)
+        {
+          throw new Exception("Error during job execution: " + e.Message, e);
+        }
+      });
+
+      if (result)
+      {
+        UnityMainThreadDispatcher.I.Enqueue(() =>
+        {
+          try
+          {
+            texOut.Apply();
+            onSuccess?.Invoke(texOut);
+          }
+          catch (Exception e)
+          {
+            onError?.Invoke("Error applying texture changes: " + e.Message);
+          }
+        });
+      }
+    }
+    catch (Exception e)
+    {
+      UnityMainThreadDispatcher.I.Enqueue(() =>
+      {
+        onError?.Invoke("TileRotate operation failed: " + e.Message);
+      });
+    }
   }
 
   public static bool TileRotate(this Texture2D tex, float tileX, float tileY, float angle)
   {
     if (tex == null)
     {
-      Debug.LogError("FlipRotate: tex is null.");
-      return false;
+      throw new ArgumentNullException(nameof(tex), "Texture is null.");
     }
 
     // Render to texture
     var rt = tex.GetTemporaryRT();
 
-    // Set up the custom blit material
-    if (_TileRotate == null)
-    {
-      _TileRotate = new Material(Shader.Find("AM/Unlit/TileRotate"));
-    }
-    _TileRotate.SetTexture("_MainTex", rt);
-    _TileRotate.SetVector("_TileXY", new Vector4(tileX, tileY, 0.0f, 0.0f));
-    _TileRotate.SetFloat("_RotationRadians", Mathf.Deg2Rad * angle);
+    TileRotateMaterial.SetTexture("_MainTex", tex);
+    TileRotateMaterial.SetVector("_TileXY", new Vector4(tileX, tileY, 0.0f, 0.0f));
+    TileRotateMaterial.SetFloat("_RotationRadians", Mathf.Deg2Rad * angle);
+    TileRotateMaterial.SetFloat("_AspectRatio", (float)tex.width / tex.height);
 
     // Perform the blit with cropping
-    Graphics.Blit(tex, rt, _TileRotate);
+    Graphics.Blit(tex, rt, TileRotateMaterial);
 
     var cachedRT = RenderTexture.active;
     RenderTexture.active = rt;
@@ -267,6 +549,26 @@ public static class TextureExt
     RenderTexture.ReleaseTemporary(texRT);
   }
 
+  private static Material _BlitCroppedMaterial;
+  private static Material BlitCroppedMaterial
+  {
+    get
+    {
+      if (_BlitCroppedMaterial == null)
+      {
+        var shader = Shader.Find("Hidden/BlitCropped");
+        if (shader == null)
+        {
+          Debug.LogError("Failed to find TileRotate shader. Make sure it's included in the project and the name is correct.");
+        }
+        else
+        {
+          _BlitCroppedMaterial = new Material(shader);
+        }
+      }
+      return _BlitCroppedMaterial;
+    }
+  }
   public static void BlitToTexCentreFitted(this Texture2D source, Texture2D destination, bool fitInside = true)
   {
     // Calculate the scale factor and offsets
@@ -298,12 +600,11 @@ public static class TextureExt
     GL.Clear(true, true, Color.clear);
 
     // Set up the material and pass the scale and offset
-    Material material = new Material(Shader.Find("Hidden/BlitCropped"));
-    material.SetTexture("_MainTex", source);
-    material.SetVector("_CropRect", new Vector4(offsetX, offsetY, scaleWidth, scaleHeight));
+    BlitCroppedMaterial.SetTexture("_MainTex", source);
+    BlitCroppedMaterial.SetVector("_CropRect", new Vector4(offsetX, offsetY, scaleWidth, scaleHeight));
 
     // Blit the texture
-    Graphics.Blit(source, tempRT, material);
+    Graphics.Blit(source, tempRT, BlitCroppedMaterial);
 
     // Copy the result to the destination texture
     RenderTexture.active = tempRT;

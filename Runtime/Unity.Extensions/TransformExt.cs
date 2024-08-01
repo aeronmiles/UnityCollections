@@ -15,17 +15,15 @@ public static class TransformExt
     return ts;
   }
 
-  public static Transform[] Children(this Transform transform)
+  public static List<Transform> Children(this Transform transform)
   {
     var childs = transform.GetComponentsInChildren<Transform>(true);
-    Transform[] objs = new Transform[childs.Length - 1];
-    int l = childs.Length;
-    int x = 0;
-    for (int i = 0; i < l; i++)
+    List<Transform> objs = new();
+    foreach (var child in childs)
     {
-      if (childs[i].parent == transform)
+      if (child.parent == transform)
       {
-        objs[x++] = childs[i];
+        objs.Add(child);
       }
     }
     return objs;

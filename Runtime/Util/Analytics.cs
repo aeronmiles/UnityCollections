@@ -7,13 +7,15 @@ using Newtonsoft.Json;
 public class Analytics : MonoSingleton<Analytics>
 {
   public static event Action<string> OnError;
-
   [SerializeField] private int _maxEntriesPerFile = 500;
   [SerializeField] private float _saveInterval = 60f;
   private readonly AnalyticsData _data = new();
   private long _sessionUTC;
   private int _sessionID;
   private float _lastSaveTime;
+  [Header("Debug")]
+  [SerializeField] private bool _logEventsToConsole = true;
+
 
   private long GetCurrentTimeMilliseconds() => DateTime.Now.ToUnixTimeMilliseconds();
 
@@ -57,7 +59,10 @@ public class Analytics : MonoSingleton<Analytics>
       _sessionUTC = GetCurrentTimeMilliseconds();
     }
 #if DEBUG
-    Debug.Log(evnt.ToString());
+    if (_logEventsToConsole)
+    {
+      Debug.Log(evnt.ToString());
+    }
 #endif
   }
 
@@ -79,7 +84,7 @@ public class Analytics : MonoSingleton<Analytics>
     if (!saveTask.Result)
     {
       OnError?.Invoke($"Failed to save analytics data to {path}");
-      LogEvent("analytics", "save_error", new Dictionary<string, string>() { { "path", path } });
+      LogEvent("analytics_save", "error", new Dictionary<string, string>() { { "path", path } });
     }
 
     _saveCoroutine = null;

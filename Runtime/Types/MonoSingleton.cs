@@ -13,7 +13,7 @@ public class MonoSingleton<T> : MonoBehaviour where T : Component
       {
         if (_Instance == null)
         {
-          _Instance = FindObjectOfType<T>();
+          _Instance = FindObjectOfType<T>(true);
           if (_Instance == null)
           {
             GameObject singletonObject = new GameObject();
