@@ -9,6 +9,10 @@ public class MonoSingletonScene<T> : MonoBehaviour where T : Component
 
   public static T I(Scene scene)
   {
+    if (!scene.isLoaded)
+    {
+      return null;
+    }
     string sceneName = scene.name;
     lock (_lock)
     {
