@@ -212,8 +212,12 @@ public static class CameraExt
     // Set up the custom blit material
     if (_BlitCroppedMaterial == null)
     {
-      Debug.LogWarning("Ensure Hidden/BlitCropped shader is included in Graphics included shaders.");
       _BlitCroppedMaterial = new Material(Shader.Find("Hidden/BlitCropped"));
+      if (_BlitCroppedMaterial == null)
+      {
+        Debug.LogError("UnityCollections :: CameraExt :: BlitCroppedToScreenBounds :: Ensure Hidden/BlitCropped shader is included in Graphics included shaders.");
+        return false;
+      }
     }
     _BlitCroppedMaterial.SetTexture("_MainTex", rtScreen);
     _BlitCroppedMaterial.SetVector("_CropRect", new Vector4(normalizedRect.x, normalizedRect.y, normalizedRect.width, normalizedRect.height));

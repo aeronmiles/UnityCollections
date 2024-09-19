@@ -115,7 +115,10 @@ public static class TextureExt
     }
 
     int m = 0;
-    while (sourceTex.width >> m != mipTexOut.width && m < maxLevels) m++;
+    while (sourceTex.width >> m != mipTexOut.width && m < maxLevels)
+    {
+      m++;
+    }
 
     if (m == maxLevels)
     {
@@ -155,65 +158,72 @@ public static class TextureExt
     {
       throw new ArgumentNullException(nameof(sourceTex), "Source texture is null.");
     }
-    else if (outTex == null)
+
+    if (outTex == null)
     {
       throw new ArgumentNullException(nameof(outTex), "Output texture is null.");
     }
-    else if (sourceTex.width != outTex.height || sourceTex.height != outTex.width)
+
+    if (sourceTex.width != outTex.height || sourceTex.height != outTex.width)
     {
       throw new ArgumentException("Output texture dimensions must be swapped source texture dimensions.");
     }
 
-    var sourcePixels = sourceTex.GetRawTextureData<Color32>();
-    var outputPixels = new NativeArray<Color32>(outTex.width * outTex.height, Allocator.TempJob);
+    var sourceBytes = sourceTex.GetRawTextureData<byte>();
+    var outputBytes = outTex.GetRawTextureData<byte>();
+
+    int bytesPerPixel = GetBytesPerPixel(sourceTex.format);
 
     var job = new Rotate90Job
     {
-      sourcePixels = sourcePixels, // Use the temp array
-      outputPixels = outputPixels,
-      sourceWidth = sourceTex.width,
-      sourceHeight = sourceTex.height,
-      counterClockwise = counterClockwise
+      sourceBytes = sourceBytes,
+      outputBytes = outputBytes,
+      dimensions = new int2(sourceTex.width, sourceTex.height),
+      bytesPerPixel = bytesPerPixel,
+      counterClockwise = counterClockwise ? 1 : 0
     };
 
-    job.Schedule(outputPixels.Length, 64).Complete(); // Adjust batch size as needed
+    // Calculate the optimal batch size (now in pixels)
+    int totalPixels = sourceTex.width * sourceTex.height;
+    int batchSize = math.max(32, math.min(1024, totalPixels / SystemInfo.processorCount));
 
-    outTex.LoadRawTextureData(outputPixels);
+    job.ScheduleParallel(totalPixels, batchSize, default).Complete();
     outTex.Apply();
 
-    outputPixels.Dispose();
+    Debug.Log($"Rotated {sourceTex.width}x{sourceTex.height} texture by 90 degrees {(counterClockwise ? "counter-clockwise" : "clockwise")}");
   }
 
-  [BurstCompile]
-  private struct Rotate90Job : IJobParallelFor
+  private static int GetBytesPerPixel(TextureFormat format) => format switch
   {
-    [ReadOnly] public NativeArray<Color32> sourcePixels;
-    [WriteOnly] public NativeArray<Color32> outputPixels;
-    public int sourceWidth;
-    public int sourceHeight;
-    public bool counterClockwise;
+    TextureFormat.RGB24 => 3,
+    TextureFormat.RGBA32 => 4,
+    _ => throw new ArgumentException($"Unsupported texture format: {format}")
+  };
 
-    public void Execute(int outputIndex)
+  [BurstCompile]
+  private struct Rotate90Job : IJobFor
+  {
+    [ReadOnly] public NativeArray<byte> sourceBytes;
+    [WriteOnly] public NativeArray<byte> outputBytes;
+    public int2 dimensions;
+    public int bytesPerPixel;
+    public int counterClockwise;
+
+    public void Execute(int index)
     {
-      // int outputWidth = sourceHeight; // Swapped dimensions
-      // int outputHeight = sourceWidth;
+      int2 output = math.int2(index % dimensions.y, index / dimensions.y);
+      int2 source = counterClockwise == 1
+          ? math.int2(dimensions.x - 1 - output.y, output.x)
+          : math.int2(output.y, dimensions.y - 1 - output.x);
 
-      // int x = outputIndex / sourceHeight;
-      // int y = outputIndex % sourceHeight;
+      int sourceIndex = (source.y * dimensions.x + source.x) * bytesPerPixel;
+      int outputIndex = index * bytesPerPixel;
 
-      // int sourceX = y;
-      // int sourceY = sourceHeight - 1 - x;
-
-      // int sourceIndex = (sourceY * sourceWidth) + sourceX;
-      // outputPixels[outputIndex] = sourcePixels[sourceIndex];
-      int x = outputIndex / sourceHeight;
-      int y = outputIndex % sourceHeight;
-
-      int newRow = sourceHeight - y - 1;
-      int newCol = x;
-
-      outputPixels[(newRow * sourceWidth) + newCol] = sourcePixels[(x * sourceHeight) + y];
-
+      // Copy all bytes for the pixel at once
+      for (int i = 0; i < bytesPerPixel; i++)
+      {
+        outputBytes[outputIndex + i] = sourceBytes[sourceIndex + i];
+      }
     }
   }
 
@@ -489,9 +499,13 @@ public static class TextureExt
 
     RenderTexture.active = rt;
     if (mat != null)
+    {
       Graphics.Blit(sourceTex, rt, mat);
+    }
     else
+    {
       Graphics.Blit(sourceTex, rt);
+    }
 
     int w = texOut.width;
     int h = texOut.height;
@@ -524,9 +538,13 @@ public static class TextureExt
 
     // Blit the entire source texture to the render texture
     if (mat != null)
+    {
       Graphics.Blit(sourceTex, rt, mat);
+    }
     else
+    {
       Graphics.Blit(sourceTex, rt);
+    }
 
     float scaleX = (float)texOut.width / sourceTex.width;
     float scaleY = (float)texOut.height / sourceTex.height;
@@ -671,9 +689,13 @@ public static class TextureExt
 
     RenderTexture.active = rt;
     if (mat != null)
+    {
       Graphics.Blit(sourceTex, rt, mat);
+    }
     else
+    {
       Graphics.Blit(sourceTex, rt);
+    }
 
     // @TODO: Optimize
     // Graphics.CopyTexture(rt, 0, 0, texOut, 0, 0);
