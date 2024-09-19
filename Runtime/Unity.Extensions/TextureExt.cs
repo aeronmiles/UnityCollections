@@ -195,6 +195,7 @@ public static class TextureExt
 
   private static int GetBytesPerPixel(TextureFormat format) => format switch
   {
+    TextureFormat.Alpha8 => 1,
     TextureFormat.RGB24 => 3,
     TextureFormat.RGBA32 => 4,
     _ => throw new ArgumentException($"Unsupported texture format: {format}")
