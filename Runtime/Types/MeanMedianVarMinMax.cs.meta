@@ -1,9 +1,5 @@
 fileFormatVersion: 2
-<<<<<<<< HEAD:AM.Unity.Collections/Types/MonoSingleton.cs.meta
 guid: eb635efa38726484a94689955575aa2c
-========
-guid: 76c9400386181984ead39e65ee4c1e07
->>>>>>>> 9c31c7c3bd33c3d67b5c9a1a3d71d3be10f4427e:AM.Unity.Collections/Types/MeanMedianVarMinMax.cs.meta
 MonoImporter:
   externalObjects: {}
   serializedVersion: 2

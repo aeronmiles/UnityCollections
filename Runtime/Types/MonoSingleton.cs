@@ -4,6 +4,7 @@ public class MonoSingleton<T> : MonoBehaviour where T : Component
 {
   private static T _Instance;
   private static readonly object _Lock = new object();
+  private static bool _applicationIsQuitting = false;
 
   public static T I
   {
@@ -13,6 +14,11 @@ public class MonoSingleton<T> : MonoBehaviour where T : Component
       {
         if (_Instance == null)
         {
+          if (_applicationIsQuitting)
+          {
+            // Return the existing instance if any, but do not create a new one
+            return _Instance;
+          }
           _Instance = FindObjectOfType<T>(true);
           if (_Instance == null)
           {
@@ -45,17 +51,23 @@ public class MonoSingleton<T> : MonoBehaviour where T : Component
       else if (_Instance != this)
       {
         Debug.LogWarning($"[Singleton] An instance of {typeof(T)} already exists.");
+        Destroy(gameObject); // Destroy duplicate instance
       }
     }
   }
 
   protected virtual void OnDestroy()
   {
-    if (_Instance == this)
+    if (!_applicationIsQuitting && _Instance == this)
     {
       _Instance = null;
     }
     Debug.Log($"MonoSingleton<{typeof(T)}> OnDestroy()");
+  }
+
+  protected virtual void OnApplicationQuit()
+  {
+    _applicationIsQuitting = true;
   }
 
   private void OnValidate()

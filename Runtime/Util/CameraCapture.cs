@@ -216,17 +216,25 @@ public class CameraCapture : MonoBehaviour
 
       Debug.Log($"CameraCapture :: Parsed values - Pointer: {baseAddress.ToInt64():X}, DataLength: {dataLength}, ImageOrientation: {imageOrientation} IsMirrored: {isMirrored}");
 
+      // @TODO: optimize: move to unsafe native array
       byte[] photoBytes = new byte[dataLength];
-      Marshal.Copy(baseAddress, photoBytes, 0, dataLength);
+      Marshal.Copy(baseAddress, photoBytes, 0, dataLength); 
 
       UnityMainThreadDispatcher.I.Enqueue(() =>
       {
-        Texture2D photoTexture = new Texture2D(2, 2);
-        photoTexture.LoadImage(photoBytes);
+        try
+        {
+          Texture2D photoTexture = new Texture2D(2, 2);
+          // @TODO: optimize: move to load raw texture data
+          photoTexture.LoadImage(photoBytes);
 
-        var rotScale = RotationAngleScale(videoOrientation, imageOrientation, isMirrored);
-        OnPhotoCaptured?.Invoke(photoTexture, rotScale.Item1, rotScale.Item2, isMirrored);
-        _FreePhotoData(baseAddress);
+          var rotScale = RotationAngleScale(videoOrientation, imageOrientation, isMirrored);
+          OnPhotoCaptured?.Invoke(photoTexture, rotScale.Item1, rotScale.Item2, isMirrored);
+        }
+        finally
+        {
+          _FreePhotoData(baseAddress);
+        }
       });
     }
     catch (Exception e)
