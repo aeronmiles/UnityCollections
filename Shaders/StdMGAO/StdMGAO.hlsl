@@ -23,6 +23,8 @@ half _OutlineAnimationSpeed;
 
 struct Input
 {
+    // vertex colors
+    float4 color : COLOR;
     float2 uv_MainTex;
     float2 uv2_MainTex;
     //float2 uv_BumpMap;

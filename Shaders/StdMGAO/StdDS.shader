@@ -23,7 +23,7 @@ Shader "Standard Metallic Gloss (M G) (AO)"
 
         [KeywordEnum(OFF, ON)] _Outline("Outline Enabled", Int) = 0
         _OutlineMin("Outline Min", Range(0.0, 1.0)) = 1.0
-        _OutlineOffset("Outline Power", Range(0.0, 6.0)) = 1.0
+        _OutlineOffset("Outline Power", Range(-1.0, 1.0)) = 0.0
         _OutlinePower("Outline Power", Range(0.0, 6.0)) = 1.0
         _OutlineColor("Outline Color", Color) = (0,0,0,1)
         _OutlineAnimationSpeed("Animation Speed", Float) = 1.0
