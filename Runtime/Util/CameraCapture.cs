@@ -7,7 +7,6 @@ using System.Runtime.InteropServices;
 
 public class CameraCapture : MonoBehaviour
 {
-
 #if UNITY_IOS && !UNITY_EDITOR
   [DllImport("__Internal")]
   private static extern void UnityBridge_setup();
@@ -34,7 +33,7 @@ public class CameraCapture : MonoBehaviour
 #endif
 
   public delegate void PhotoCaptureCallback(Texture2D photoData, float rotation, Vector3 scale, bool isMirrored);
-  public event PhotoCaptureCallback OnPhotoCaptured;
+  // public event PhotoCaptureCallback OnPhotoCaptured;
 
   public delegate void PreviewFrameCallback(Texture2D previewTexture, float rotation, Vector3 scale, bool isMirrored);
   public event PreviewFrameCallback OnPreviewTextureUpdated;

@@ -49,6 +49,22 @@ void midtone_mask_float(float value, float hpower, float lpower, out float Out)
     Out = 1 - midtones;
 }
 
+void MaskX_float(float2 uv, float width, float offset, float smooth, out float Result)
+{
+    float maskLeft = smoothstep(0, smooth, uv.x - (0.5 - width + offset));
+    float maskRight = smoothstep(0, smooth, 1 - (uv.x - (0.5 + width + offset)));
+    Result = maskLeft * maskRight;
+}
+
+void CRTPixelMask_float(float2 uv, float2 density, float contrast, out float Result)
+{
+    float2 pixelCoord = uv * density;
+    float2 pixelCenter = floor(pixelCoord) + 0.5;
+    float2 delta = (pixelCoord - pixelCenter) / 0.5;
+    float distSq = dot(delta, delta);
+    float pixelMask = 1 - smoothstep(0.5 - contrast, 0.5 + contrast, distSq);
+    Result = lerp(1 - contrast, 1, pixelMask);
+}
 
 //
 // END OF __MASKS__DJ134FDN239DHF2__
