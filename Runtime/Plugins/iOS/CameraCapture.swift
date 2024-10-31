@@ -827,17 +827,3 @@ public func _StopCamera() {
 public func _FreePhotoData(_ pointer: UnsafeMutableRawPointer) {
   CameraCapture.shared.freePhotoData(pointer)
 }
-
-// @_cdecl("_GetCameraOrientation")
-// public func _GetCameraOrientation() -> UnsafePointer<CChar> {
-//   let result = CameraCapture.shared.getCameraOrientation()
-//   let count = result.utf8.count + 1
-//   let buffer = UnsafeMutablePointer<Int8>.allocate(capacity: count)
-//   result.withCString { strcpy(buffer, $0) }
-//   return UnsafePointer(buffer)
-// }
-
-// @_cdecl("_FreeCameraOrientation")
-// public func _FreeCameraOrientation(_ ptr: UnsafeMutablePointer<Int8>) {
-//   ptr.deallocate()
-// }
