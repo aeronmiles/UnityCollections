@@ -16,7 +16,7 @@ Shader "Standard (M G) (AO) Double Sided Front Trans" {
       _EmissionMap("Emission", 2D) = "black" {}
         [KeywordEnum(OFF, ON)] _Outline("Outline Enabled", Int) = 0
       _OutlineMin("Outline Min", Range(0.0, 1.0)) = 1.0
-      _OutlineOffset("Outline Power", Range(0.0, 6.0)) = 1.0
+        _OutlineOffset("Outline Power", Range(-1.0, 1.0)) = 0.0
       _OutlinePower("Outline Power", Range(0.0, 6.0)) = 1.0
       _OutlineColor("Outline Color", Color) = (0,0,0,1)
       [Enum(Off,0,On,1)] _ZWrite("ZWrite", Float) = 1.0

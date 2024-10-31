@@ -9,14 +9,14 @@ public class SceneLoader : MonoSingleton<SceneLoader>
   public static event Action<Scene, LoadSceneMode> OnSceneLoaded;
   public static event Action<Scene> OnSceneUnloaded;
 
-  private void Awake()
+  private new void Awake()
   {
     SceneManager.sceneLoaded += OnSceneLoadedEvent;
     SceneManager.sceneUnloaded += OnSceneUnloadedEvent;
     m_loadingScreen.SetActive(false);
   }
 
-  private void OnDestroy()
+  private new void OnDestroy()
   {
     SceneManager.sceneLoaded -= OnSceneLoadedEvent;
     SceneManager.sceneUnloaded -= OnSceneUnloadedEvent;
