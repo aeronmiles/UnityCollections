@@ -42,6 +42,7 @@ public static class TextureExt
     //     format,
     //     mipChains, linear,
     //     texture.GetNativeTexturePtr());
+    Debug.Log("TextureExt :: ToTexture2D");
 
     var tex = new Texture2D(texture.width, texture.height, format, mipChains, linear)
     {

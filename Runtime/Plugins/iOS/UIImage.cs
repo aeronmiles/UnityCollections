@@ -1,4 +1,4 @@
-public static class UIImage
+namespace UIImage
 {
   public enum Orientation
   {

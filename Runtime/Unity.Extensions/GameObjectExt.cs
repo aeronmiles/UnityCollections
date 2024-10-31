@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -187,5 +188,31 @@ public static class GameObjectExt
     }
 
     return new Bounds((max + min) * 0.5f, max - min);
+  }
+
+  public static void SafeDestroy(this UnityEngine.Object obj)
+  {
+    if (obj == null)
+    {
+      Debug.LogError("GameObjectExt :: SafeDestroy :: Object is null");
+      return;
+    }
+    var temp = obj;
+    obj = null;
+    UnityMainThreadDispatcher.I.Enqueue(() =>
+    {
+      try
+      {
+        if (temp != null)
+        {
+          GameObject.Destroy(temp);
+          temp = null;
+        }
+      }
+      catch (Exception e)
+      {
+        Debug.LogError($"GameObjectExt :: SafeDestroy :: Error destroying UnityEngine.Object: {e.Message}");
+      }
+    });
   }
 }

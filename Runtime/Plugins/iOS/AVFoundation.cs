@@ -1,4 +1,4 @@
-public static class AVFoundation
+namespace AVFoundation
 {
   public enum AVCaptureVideoOrientation
   {
