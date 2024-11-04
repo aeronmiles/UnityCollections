@@ -22,7 +22,7 @@ public class AppLogger : IServiceLogger
   private readonly bool _isDebugBuild;
   private readonly bool _enableConsoleLogging;
   private readonly bool _enableFileLogging;
-  private StringBuilder _stringBuilder = new StringBuilder(2048);
+  private readonly StringBuilder _stringBuilder = new StringBuilder(2048);
 
   public AppLogger(ServiceManagerConfig config)
   {
@@ -80,7 +80,7 @@ public class AppLogger : IServiceLogger
 
   private void InternalLog(Logger logger, LogType logType, string tag, object message, UnityEngine.Object caller)
   {
-    _stringBuilder.Clear().Append(tag).Append(Separator).Append(message);
+    _ = _stringBuilder.Clear().Append(tag).Append(Separator).Append(message);
 
     switch (logType)
     {
@@ -114,14 +114,33 @@ public class AppLogger : IServiceLogger
           logger.LogError(_stringBuilder.ToString(), caller);
         }
         break;
+      case LogType.Assert:
+        if (caller == null)
+        {
+          logger.LogError(tag, _stringBuilder.ToString());
+        }
+        else
+        {
+          logger.LogError(_stringBuilder.ToString(), caller);
+        }
+        break;
+      case LogType.Exception:
+        if (caller == null)
+        {
+          logger.LogError(tag, _stringBuilder.ToString());
+        }
+        else
+        {
+          logger.LogError(_stringBuilder.ToString(), caller);
+        }
+        break;
+      default:
+        break;
     }
     _ = _stringBuilder.Clear();
   }
 
-  public void Log(string tag, object message, UnityEngine.Object caller)
-  {
-    InternalLog(LogType.Log, tag, message, caller);
-  }
+  public void Log(string tag, object message, UnityEngine.Object caller) => InternalLog(LogType.Log, tag, message, caller);
 
   public void LogDebug(string tag, object message, UnityEngine.Object caller)
   {
@@ -131,10 +150,7 @@ public class AppLogger : IServiceLogger
     }
   }
 
-  public void LogWarning(string tag, object message, UnityEngine.Object caller)
-  {
-    InternalLog(LogType.Warning, tag, message, caller);
-  }
+  public void LogWarning(string tag, object message, UnityEngine.Object caller) => InternalLog(LogType.Warning, tag, message, caller);
 
   public void LogError(string tag, object message, Exception exception, UnityEngine.Object caller)
   {
@@ -245,10 +261,7 @@ public class UnityLogInterceptor : ILogHandler
       _originalUnityHandler.LogException(exception, context);
 
       // Only pipe to file logger
-      if (_fileLogger != null)
-      {
-        _fileLogger.LogException(exception, context);
-      }
+      _fileLogger?.LogException(exception, context);
     }
     finally
     {

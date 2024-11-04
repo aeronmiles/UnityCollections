@@ -12,24 +12,25 @@ public static class LogHandlerFactory
 {
   /// <summary>
   /// Abstract base class providing core logging functionality with enhanced features
-  /// following SOLID principles and functional programming practices.
   /// </summary>
   public abstract class BaseLogHandler : ILogHandler, IDisposable
   {
     // Configurable constants for optimization
-    private const int DEFAULT_BUFFER_SIZE = 2048;
-    private const string DATE_TIME_FORMAT = "yyyy-MM-dd HH:mm:ss.ffff";
+    private const int _DEFAULT_BUFFER_SIZE = 2048;
+    private const string _DATE_TIME_FORMAT = "yyyy-MM-dd HH:mm:ss.ffff";
 
     // Thread-safe StringBuilder instance
     protected readonly StringBuilder stringBuilder;
 
     // Pre-allocated string arrays for common operations
-    private static readonly string[] LogHeaders = Enum.GetNames(typeof(LogType));
+    private static readonly string[] _LogHeaders = Enum.GetNames(typeof(LogType));
 
-    protected BaseLogHandler(int bufferSize = DEFAULT_BUFFER_SIZE)
+    protected BaseLogHandler(int bufferSize = _DEFAULT_BUFFER_SIZE)
     {
       if (bufferSize <= 0)
+      {
         throw new ArgumentOutOfRangeException(nameof(bufferSize), "Buffer size must be positive");
+      }
 
       stringBuilder = new StringBuilder(bufferSize);
     }
@@ -51,12 +52,12 @@ public static class LogHandlerFactory
     {
       try
       {
-        stringBuilder.Clear();
+        _ = stringBuilder.Clear();
         _ = stringBuilder
             .Append('[')
-            .Append(DateTime.Now.ToString(DATE_TIME_FORMAT))
+            .Append(DateTime.Now.ToString(_DATE_TIME_FORMAT))
             .Append("] [")
-            .Append(LogHeaders[(int)logType])
+            .Append(_LogHeaders[(int)logType])
             .Append("] ");
 
         if (context != null)
@@ -79,11 +80,13 @@ public static class LogHandlerFactory
     protected virtual void WriteExceptionDetails(Exception exception, UnityEngine.Object context)
     {
       if (exception == null)
+      {
         throw new ArgumentNullException(nameof(exception));
+      }
 
       try
       {
-        stringBuilder.Clear();
+        _ = stringBuilder.Clear();
         AppendExceptionHeader(context);
         AppendExceptionInfo(exception, isInnerException: false);
 
@@ -91,7 +94,7 @@ public static class LogHandlerFactory
         var currentException = exception.InnerException;
         while (currentException != null)
         {
-          stringBuilder.AppendLine("Inner Exception:");
+          _ = stringBuilder.AppendLine("Inner Exception:");
           AppendExceptionInfo(currentException, isInnerException: true);
           currentException = currentException.InnerException;
         }
@@ -106,7 +109,7 @@ public static class LogHandlerFactory
     {
       _ = stringBuilder
           .Append('[')
-          .Append(DateTime.Now.ToString(DATE_TIME_FORMAT))
+          .Append(DateTime.Now.ToString(_DATE_TIME_FORMAT))
           .AppendLine("] [EXCEPTION]");
 
       if (context != null)
@@ -131,18 +134,12 @@ public static class LogHandlerFactory
     /// <summary>
     /// Handles internal errors that occur within the logger itself.
     /// </summary>
-    protected virtual void HandleInternalError(Exception ex, string operation)
-    {
-      Debug.LogError($"Internal error in BaseLogHandler.{operation}: {ex.Message}");
-    }
+    protected virtual void HandleInternalError(Exception ex, string operation) => Debug.LogError($"Internal error in BaseLogHandler.{operation}: {ex.Message}");
 
     /// <summary>
     /// Performs cleanup of managed resources.
     /// </summary>
-    public virtual void Dispose()
-    {
-      stringBuilder.Clear();
-    }
+    public virtual void Dispose() => _ = stringBuilder.Clear();
   }
 
   public class DebugLogHandler : BaseLogHandler
@@ -152,7 +149,7 @@ public static class LogHandlerFactory
       try
       {
         WriteLogHeader(logType, context);
-        stringBuilder.AppendLine(string.Format(format, args));
+        _ = stringBuilder.AppendLine(string.Format(format, args));
 
         // Now safe to use Debug.Log as it will only be forwarded to file
         switch (logType)
@@ -164,6 +161,12 @@ public static class LogHandlerFactory
             Debug.LogWarning(stringBuilder.ToString(), context);
             break;
           case LogType.Error:
+            Debug.LogError(stringBuilder.ToString(), context);
+            break;
+          case LogType.Assert:
+            Debug.LogAssertion(stringBuilder.ToString(), context);
+            break;
+          case LogType.Exception:
             Debug.LogError(stringBuilder.ToString(), context);
             break;
           default:
@@ -222,7 +225,7 @@ public static class LogHandlerFactory
       _currentFileWriter?.Dispose();
 
       // Create directory if it doesn't exist
-      Directory.CreateDirectory(directory ?? "");
+      _ = Directory.CreateDirectory(directory ?? "");
 
       // Create new writer
       _currentFileWriter = new StreamWriter(fullPath, true);
@@ -250,7 +253,7 @@ public static class LogHandlerFactory
         try
         {
           WriteLogHeader(logType, context);
-          stringBuilder.AppendLine(string.Format(format, args));
+          _ = stringBuilder.AppendLine(string.Format(format, args));
 
           string content = stringBuilder.ToString();
           CheckRotation(content.Length);
