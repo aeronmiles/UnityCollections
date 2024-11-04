@@ -20,17 +20,17 @@ public static class DataUtil
     object data = new { };
     if (File.Exists(path))
     {
-      Debug.Log($"DataUtil -> Load(path={path}) :: Data loading");
+      ServiceManager.I.logger.Log("DataUtil", $"Load(path={path}) :: Data loading", null);
       try
       {
         using StreamReader r = new StreamReader(path);
         var _data = JsonConvert.DeserializeObject<T>(r.ReadToEnd());
         data = _data;
-        Debug.Log($"DataUtil -> Load(path={path}) :: Data loaded:\n" + _data);
+        ServiceManager.I.logger.Log("DataUtil", $"Load(path={path}) :: Data loaded:\n" + _data, null);
       }
       catch (Exception ex)
       {
-        Debug.Log($"DataUtil -> Load(path={path}) :: Error loading data: " + ex.Message);
+        ServiceManager.I.logger.LogException("DataUtil", $"Load(path={path}) :: Error loading data: ", ex, null);
         dataOut = null;
         return false;
       }
@@ -44,7 +44,7 @@ public static class DataUtil
     }
     else
     {
-      Debug.Log($"DataUtil -> Load(path={path}) :: Data is empty");
+      ServiceManager.I.logger.Log("DataUtil", $"Load(path={path}) :: Data is empty", null);
       dataOut = null;
       return false;
     }
@@ -62,8 +62,8 @@ public static class DataUtil
     }
     catch (Exception ex)
     {
-      Debug.LogError($"DataUtil -> LoadTexture(path={path}) :: error: " + ex.Message);
       tex = default;
+      ServiceManager.I.logger.LogException("DataUtil", $"LoadTexture(path={path}) :: Error loading texture: ", ex, null);
       return false;
     }
   }
@@ -83,7 +83,7 @@ public static class DataUtil
       }
       catch (Exception ex)
       {
-        Debug.Log($"DataUtil -> Load(path={path}) :: Error loading data: " + ex.Message);
+        ServiceManager.I.logger.LogException("DataUtil", $"Load(path={path}) :: Error loading data: ", ex, null);
         if (dataFile != null) dataFile.Close();
         dataOut = null;
         return false;
@@ -98,7 +98,7 @@ public static class DataUtil
     }
     else
     {
-      Debug.Log($"DataUtil -> Load(path={path}) :: Data is empty");
+      ServiceManager.I.logger.Log("DataUtil", $"Load(path={path}) :: Data is empty", null);
       dataOut = null;
       return false;
     }
@@ -117,7 +117,7 @@ public static class DataUtil
     try
     {
 #if DEBUG
-      Debug.Log($"DataUtil -> Save(path={filePath}) :: Data saving\n" + jsonString);
+      ServiceManager.I.logger.Log("DataUtil", $"Save(path={filePath}) :: Data saving", null);
 #endif
       using StreamWriter writer = new StreamWriter(filePath);
       writer.Write(jsonString);
@@ -126,7 +126,7 @@ public static class DataUtil
     }
     catch (Exception ex)
     {
-      Debug.Log($"DataUtil -> Save(path={filePath}) :: Error saving data: " + ex.Message);
+      ServiceManager.I.logger.LogException("DataUtil", $"Save(path={filePath}) :: Error saving data: ", ex, null);
       return false;
     }
   }
@@ -136,18 +136,18 @@ public static class DataUtil
     try
     {
 #if DEBUG
-      Debug.Log($"DataUtil -> Save(path={filePath}) :: Data saving\n" + jsonString);
+      ServiceManager.I.logger.Log("DataUtil", $"Save(path={filePath}) :: Data saving", null);
 #endif
       using (StreamWriter writer = new StreamWriter(filePath))
       {
         await writer.WriteAsync(jsonString);
       }
-      Debug.Log($"DataUtil -> Save(path={filePath}) :: Data saved successfully");
+      ServiceManager.I.logger.Log("DataUtil", $"Save(path={filePath}) :: Data saved successfully", null);
       return true;
     }
     catch (Exception ex)
     {
-      Debug.Log($"DataUtil -> Save(path={filePath}) :: Error saving data: " + ex.Message);
+      ServiceManager.I.logger.LogException("DataUtil", $"Save(path={filePath}) :: Error saving data: ", ex, null);
       return false;
     }
   }
@@ -163,7 +163,7 @@ public static class DataUtil
     try
     {
 #if DEBUG
-      Debug.Log($"DataUtil -> SaveJson(path={path}) :: Data saving, Type: {typeof(T)}\n" + JsonUtility.ToJson(data, true));
+      ServiceManager.I.logger.Log("DataUtil", $"SaveJson(path={path}) :: Data saving, Type: {typeof(T)}\n" + JsonUtility.ToJson(data, true), null);
 #endif
       using StreamWriter writer = new StreamWriter(path);
       writer.Write(JsonConvert.SerializeObject(data));
@@ -172,7 +172,7 @@ public static class DataUtil
     }
     catch (Exception ex)
     {
-      Debug.Log($"DataUtil -> SaveJson(path={path}) :: Error saving data: " + ex.Message);
+      ServiceManager.I.logger.LogException("DataUtil", $"SaveJson(path={path}) :: Error saving data: ", ex, null);
       return false;
     }
   }
@@ -182,7 +182,7 @@ public static class DataUtil
     try
     {
 #if DEBUG
-      Debug.Log($"DataUtil -> SaveBinary(path={path}) :: Data saving, Type: {typeof(T)}\n" + JsonUtility.ToJson(data));
+      ServiceManager.I.logger.Log("DataUtil", $"SaveBinary(path={path}) :: Data saving, Type: {typeof(T)}\n" + JsonUtility.ToJson(data), null);
 #endif
       BinaryFormatter b = new BinaryFormatter();
       FileStream dataFile = File.Create(path);
@@ -192,7 +192,7 @@ public static class DataUtil
     }
     catch (Exception ex)
     {
-      Debug.Log($"DataUtil -> SaveBinary(path={path}) :: Error saving data: " + ex.Message);
+      ServiceManager.I.logger.LogException("DataUtil", $"SaveBinary(path={path}) :: Error saving data: ", ex, null);
       return false;
     }
   }
@@ -203,7 +203,7 @@ public static class DataUtil
     // Attempt to output app data to console; don't break if we fail
     try
     {
-      // Debug.Log($"DataUtil -> Load(path={path}) :: Data loaded:\n" + JsonConvert.SerializeObject(data));
+      // ServiceManager.I.logger.Log("DataUtil", $"Load(path={path}) :: Data loaded:\n" + JsonConvert.SerializeObje, thisct(data));
     }
     catch
     {

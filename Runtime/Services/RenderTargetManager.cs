@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
+// @TODO: Implement as service
 [ExecuteInEditMode]
 public class RenderTargetManager : MonoSingletonScene<RenderTargetManager>
 {
@@ -31,6 +32,7 @@ public class RenderTargetManager : MonoSingletonScene<RenderTargetManager>
 #endif
   }
 
+  // @TODO: Implement error handling  
   public bool Render(string id, out RenderTexture rtOut)
   {
     foreach (var r in _renderTargets)

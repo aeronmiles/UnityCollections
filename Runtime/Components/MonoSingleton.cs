@@ -50,7 +50,7 @@ public class MonoSingleton<T> : MonoBehaviour where T : Component
       }
       else if (_Instance != this)
       {
-        Debug.LogWarning($"[Singleton] An instance of {typeof(T)} already exists.");
+        ServiceManager.I.logger.LogWarning("MonoSingleton", $"Instance of {typeof(T)} already exists. Destroying duplicate instance.", this);
         Destroy(gameObject); // Destroy duplicate instance
       }
     }
@@ -62,7 +62,7 @@ public class MonoSingleton<T> : MonoBehaviour where T : Component
     {
       _Instance = null;
     }
-    Debug.Log($"MonoSingleton<{typeof(T)}> OnDestroy()");
+    // ServiceManager.I.logger.Log($"MonoSingleton<{typeof(T)}>", "OnDestroy()", this);
   }
 
   protected virtual void OnApplicationQuit()

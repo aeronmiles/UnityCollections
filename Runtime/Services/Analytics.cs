@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using Newtonsoft.Json;
 
+// @TODO: Implement as service
 public class Analytics : MonoSingleton<Analytics>
 {
   public static event Action<string> OnError;
@@ -13,9 +14,7 @@ public class Analytics : MonoSingleton<Analytics>
   private long _sessionUTC;
   private int _sessionID;
   private float _lastSaveTime;
-  [Header("Debug")]
-  [SerializeField] private bool _logEventsToConsole = true;
-
+  [SerializeField] private bool _sendEventsToLogger = true;
 
   private long GetCurrentTimeMilliseconds() => DateTime.Now.ToUnixTimeMilliseconds();
 
@@ -58,12 +57,10 @@ public class Analytics : MonoSingleton<Analytics>
       _data.events.Clear();
       _sessionUTC = GetCurrentTimeMilliseconds();
     }
-#if DEBUG
-    if (_logEventsToConsole)
+    if (_sendEventsToLogger)
     {
-      Debug.Log(evnt.ToString());
+      ServiceManager.I.logger.Log("Analytics", evnt.ToString(), this);
     }
-#endif
   }
 
   private Coroutine _saveCoroutine;
@@ -75,11 +72,11 @@ public class Analytics : MonoSingleton<Analytics>
 
     var saveTask = DataUtil.SaveStringAsync(json, path);
 
-    Debug.Log("Analytics -> Save() :: Waiting for save task to complete");
+    ServiceManager.I.logger.Log("Analytics", "Analytics -> Save() :: Waiting for save task to complete", this);
 
     yield return new WaitUntil(() => saveTask.IsCompleted);
 
-    Debug.Log("Analytics -> Save() :: Save task completed");
+    ServiceManager.I.logger.Log("Analytics", "Analytics -> Save() :: Save task completed", this);
 
     if (!saveTask.Result)
     {
@@ -102,6 +99,8 @@ internal struct AnalyticsEvent
   public string description;
   public Dictionary<string, string> parameters;
   public override readonly string ToString() => $"{sessionID} - {name} - {description}\n parameters: {parameters.ToKeyValueString()}";
+
+  public string ToJson() => JsonConvert.SerializeObject(this, Formatting.Indented);
 }
 
 [Serializable]

@@ -23,7 +23,8 @@ namespace NativeCameraCapture
 #elif UNITY_ANDROID
           _cameraService = new AndroidCameraService();
 #elif UNITY_EDITOR
-          _cameraService = new UnityEditorCameraService();
+          // @TODO: Implement editor camera service
+          // _cameraService = new UnityEditorCameraService();
 #endif
         }
         return _cameraService;
@@ -53,7 +54,7 @@ namespace NativeCameraCapture
       if (!_isApplicationQuitting)
       {
         // LogMemoryUsage("Before camera initialization");
-        cameraService.InitializeCamera(gameObject.name);
+        cameraService?.InitializeCamera(gameObject.name);
         // LogMemoryUsage("After camera initialization");
       }
     }
@@ -151,9 +152,9 @@ namespace NativeCameraCapture
         // LogMemoryUsage("Before starting preview");
         if (!isCameraActive)
         {
-          cameraService.InitializeCamera(gameObject.name);
+          cameraService?.InitializeCamera(gameObject.name);
         }
-        cameraService.StartPreview();
+        cameraService?.StartPreview();
         // LogMemoryUsage("After starting preview");
       }
       catch (Exception e)
@@ -174,7 +175,7 @@ namespace NativeCameraCapture
       {
         if (isCameraActive && !isPreviewPaused)
         {
-          cameraService.PausePreview();
+          cameraService?.PausePreview();
           Debug.Log("CameraCapture :: Preview paused");
         }
       }
@@ -196,12 +197,12 @@ namespace NativeCameraCapture
         LogMemoryUsage("Before resuming preview");
         if (!isCameraActive)
         {
-          cameraService.InitializeCamera(gameObject.name);
+          cameraService?.InitializeCamera(gameObject.name);
         }
 
         if (isPreviewPaused)
         {
-          cameraService.ResumePreview();
+          cameraService?.ResumePreview();
         }
         LogMemoryUsage("After resuming preview");
       }
@@ -224,7 +225,7 @@ namespace NativeCameraCapture
         LogMemoryUsage("Before stopping camera");
         if (isCameraActive)
         {
-          cameraService.StopCamera();
+          cameraService?.StopCamera();
           // CleanupResources();
         }
         LogMemoryUsage("After stopping camera");
@@ -248,7 +249,7 @@ namespace NativeCameraCapture
         try
         {
           LogMemoryUsage("Before taking photo");
-          cameraService.TakePhoto();
+          cameraService?.TakePhoto();
         }
         catch (Exception e)
         {
@@ -272,7 +273,7 @@ namespace NativeCameraCapture
 
       try
       {
-        cameraService.SwitchCamera();
+        cameraService?.SwitchCamera();
       }
       catch (Exception e)
       {
@@ -290,7 +291,7 @@ namespace NativeCameraCapture
 
       try
       {
-        cameraService.SetWhiteBalanceMode(mode);
+        cameraService?.SetWhiteBalanceMode(mode);
       }
       catch (Exception e)
       {
@@ -307,7 +308,7 @@ namespace NativeCameraCapture
 
       try
       {
-        cameraService.SetColorTemperature(temperature);
+        cameraService?.SetColorTemperature(temperature);
       }
       catch (Exception e)
       {
@@ -470,7 +471,7 @@ namespace NativeCameraCapture
             var cameraService = this.cameraService as IosCameraService;
             if (cameraService != null)
             {
-              cameraService.FreePhotoData(baseAddress);
+              cameraService?.FreePhotoData(baseAddress);
             }
             else
             {
@@ -1028,7 +1029,9 @@ namespace NativeCameraCapture
       return Input.deviceOrientation;
     }
 
+#pragma warning disable IDE0051 // Remove unused private members
     private int CalculateRotationAngle(DeviceOrientation orientation, AVCaptureVideoOrientation videoOrientation)
+#pragma warning restore IDE0051 // Remove unused private members
     {
       // Device orientation to angle mapping
       int deviceAngle = orientation switch
@@ -1046,9 +1049,16 @@ namespace NativeCameraCapture
         AVCaptureVideoOrientation.Portrait => 0,
         AVCaptureVideoOrientation.PortraitUpsideDown => 180,
         AVCaptureVideoOrientation.LandscapeLeft => 270,
-        AVCaptureVideoOrientation.LandscapeRight => 90
+        AVCaptureVideoOrientation.LandscapeRight => 90,
+        _ => LogAndReturnDefault()
       };
 
+      // Helper method to log the error and return a default value.
+      static int LogAndReturnDefault()
+      {
+        Debug.LogError("CameraCapture :: CalculateRotationAngle :: Unknown video orientation");
+        return 0;
+      }
       // Calculate the difference and normalize to -180 to 180 range
       int rotation = (videoAngle - deviceAngle) % 360;
       if (rotation > 180) rotation -= 360;

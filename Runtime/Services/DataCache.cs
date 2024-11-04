@@ -6,6 +6,7 @@ using Newtonsoft.Json;
 using UnityEngine;
 using UnityEngine.Networking;
 
+// @TODO: Implement as service
 public class DataCache : MonoSingleton<DataCache>
 {
   public static string DataCachePath = Path.Combine(Application.dataPath, "..", ".cache");
@@ -87,31 +88,6 @@ public abstract class DataFetcher<T> : IID where T : class
 
   public abstract IEnumerator Fetch(Action<T> onSuccess = null, Action onError = null);
 }
-
-// @TODO: File fetcher / DataFetcher implementation
-// public class Texture2DFileFetcher : DataFetcher<Texture2D>
-// {
-//     public Texture2DFileFetcher(string uri, string id) : base(uri, id)
-//     {
-//     }
-
-//     private bool Fetch(out Texture2D tex, string path)
-//     {
-//         tex = new Texture2D(2, 2);
-//         return DataUtil.LoadTexture(out tex, path);
-//     }
-
-//     public override IEnumerator Fetch(Action<Texture2D> onSuccess = null, Action onError = null)
-//     {
-//         if (Fetch(out Texture2D tex, uri))
-//         {
-//             onSuccess?.Invoke(tex);
-//         }
-//         else
-//         {
-//         }
-//     }
-// }
 
 public class Texture2DFetcher : DataFetcher<Texture2D>
 {

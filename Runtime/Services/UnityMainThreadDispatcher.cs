@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 /// <summary>
 /// A thread-safe class which holds a queue with actions to execute on the next Update() method. It can be used to make calls to the main thread for things such as UI Manipulation in Unity. 
 /// </summary>
+// @TODO: Implement as service
 public class UnityMainThreadDispatcher : MonoSingleton<UnityMainThreadDispatcher>
 {
   private static readonly Queue<Action> _executionQueue = new Queue<Action>();

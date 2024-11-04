@@ -3,6 +3,7 @@ using System.Collections;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
+// @TODO: Implement as service
 public class SceneLoader : MonoSingleton<SceneLoader>
 {
   [SerializeField] private GameObject m_loadingScreen;

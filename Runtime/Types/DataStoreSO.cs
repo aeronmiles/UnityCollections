@@ -16,12 +16,11 @@ public class DataStoreSO : ScriptableObject
     }
   }
 
-  public new void SetDirty()
-  {
+  public new void SetDirty() =>
 #if UNITY_EDITOR
     UnityEditor.EditorUtility.SetDirty(this);
 #endif
-  }
+
 
   public void RemoveDuplicates()
   {

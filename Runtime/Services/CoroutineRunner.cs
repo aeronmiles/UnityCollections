@@ -4,6 +4,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
+// @TODO: Implement as service
 public class CoroutineRunner : MonoSingleton<CoroutineRunner>
 {
   public static void Run(IEnumerator coroutine)
