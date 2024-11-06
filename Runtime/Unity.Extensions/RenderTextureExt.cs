@@ -142,4 +142,49 @@ public static class RenderTextureExt
     };
     return texture2D;
   }
+
+  public static Texture2D RotateAndScale(Texture2D sourceTexture, float rotation, Vector2 scale)
+  {
+    // Create a temporary RenderTexture for the rotation
+    int width = sourceTexture.width;
+    int height = sourceTexture.height;
+
+    // Swap width and height if rotating 90 or 270 degrees
+    if (Mathf.Approximately(Mathf.Abs(rotation % 180), 90))
+    {
+      int temp = width;
+      width = height;
+      height = temp;
+    }
+
+    RenderTexture rt = RenderTexture.GetTemporary(width, height, 0);
+    rt.useMipMap = false;
+
+    // Create a material for the rotation and scaling
+    Material material = new Material(Shader.Find("Hidden/Internal-Colored"))
+    {
+      hideFlags = HideFlags.HideAndDontSave
+    };
+
+    // Set up the rotation matrix
+    float rad = rotation * Mathf.Deg2Rad;
+    Vector2 pivot = new Vector2(0.5f, 0.5f);
+    Matrix4x4 matrix = Matrix4x4.TRS(
+        new Vector3(0.5f, 0.5f, 0),
+        Quaternion.Euler(0, 0, rotation),
+        new Vector3(scale.x, scale.y, 1)
+    ) * Matrix4x4.TRS(new Vector3(-0.5f, -0.5f, 0), Quaternion.identity, Vector3.one);
+
+    // Apply the transformation
+    Graphics.Blit(sourceTexture, rt, material);
+
+    // Convert back to Texture2D
+    Texture2D result = rt.ToTexture2D(false);
+
+    // Clean up
+    RenderTexture.ReleaseTemporary(rt);
+    Object.DestroyImmediate(material);
+
+    return result;
+  }
 }

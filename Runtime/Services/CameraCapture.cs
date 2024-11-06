@@ -882,13 +882,13 @@ namespace NativeCameraCapture
 
         Vector3 scale = CalculateScale(rotationAngle, imageOrientation, isMirrored);
 
-        Debug.Log($"CameraCapture :: Orientation calculation :: " +
-                  $"VideoOrientation: {videoOrientation}, " +
-                  $"DeviceOrientation: {orientation}, " +
-                  $"ImageOrientation: {imageOrientation}, " +
-                  $"IsMirrored: {isMirrored}, " +
-                  $"FinalRotation: {rotationAngle}, " +
-                  $"FinalScale: {scale}");
+        // Debug.Log($"CameraCapture :: Orientation calculation :: " +
+        //           $"VideoOrientation: {videoOrientation}, " +
+        //           $"DeviceOrientation: {orientation}, " +
+        //           $"ImageOrientation: {imageOrientation}, " +
+        //           $"IsMirrored: {isMirrored}, " +
+        //           $"FinalRotation: {rotationAngle}, " +
+        //           $"FinalScale: {scale}");
 
         return (rotationAngle, scale);
       }
@@ -1152,8 +1152,18 @@ namespace NativeCameraCapture
 #endif
     }
 
-    public void InitializeCamera(string gameObjectName) => _InitializeCamera(gameObjectName);
-    public void StartPreview() => _StartPreview();
+    public void InitializeCamera(string gameObjectName)
+    {
+#if UNITY_IOS && !UNITY_EDITOR
+      _InitializeCamera(gameObjectName);
+#endif
+    }
+    public void StartPreview()
+    {
+#if UNITY_IOS && !UNITY_EDITOR
+      _StartPreview();
+#endif
+    }
     public void PausePreview() => _PausePreview();
     public void ResumePreview() => _ResumePreview();
     public void TakePhoto() => _TakePhoto();

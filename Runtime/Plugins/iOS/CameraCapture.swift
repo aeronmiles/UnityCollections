@@ -154,7 +154,8 @@ class CameraCapture: NSObject, AVCapturePhotoCaptureDelegate,
       let settings = AVCapturePhotoSettings()
       settings.isAutoStillImageStabilizationEnabled = true
       settings.flashMode = .on
-      settings.isHighResolutionPhotoEnabled = true
+      // settings.isHighResolutionPhotoEnabled = false
+      // settings.maxPhotoDimensions = CMVideoDimensions(width: 1920, height: 1080)
 
 
       // // Ensure white balance is set before capturing the photo

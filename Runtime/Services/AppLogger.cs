@@ -63,10 +63,6 @@ public class AppLogger : IServiceLogger
 
   private void InternalLog(LogType logType, string tag, object message, UnityEngine.Object caller)
   {
-    // string formattedMessage = $"{tag} :: {message}";
-
-    // Debug.Log(formattedMessage + " _enableConsole " + _enableConsoleLogging, caller);
-    // Debug.Log(formattedMessage + " _enableFile  " + _enableFileLogging, caller);
     if (_enableConsoleLogging)
     {
       InternalLog(_consoleLogger, logType, tag, message, caller);

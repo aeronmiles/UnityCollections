@@ -290,13 +290,14 @@ public static class LogHandlerFactory
         catch (Exception ex)
         {
           // Fallback to console logging if file operations fail
-          Debug.LogException(exception, context);
+          Debug.LogException(ex, context);
         }
       }
     }
 
-    public void Dispose()
+    public new void Dispose()
     {
+      base.Dispose();
       lock (_lockObject)
       {
         _currentFileWriter?.Dispose();

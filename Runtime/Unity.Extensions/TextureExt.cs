@@ -7,6 +7,7 @@ using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
 using UnityEngine;
+using UnityEngine.Experimental.Rendering;
 
 public static class TextureExt
 {
@@ -168,6 +169,11 @@ public static class TextureExt
     if (sourceTex.width != outTex.height || sourceTex.height != outTex.width)
     {
       throw new ArgumentException("Output texture dimensions must be swapped source texture dimensions.");
+    }
+
+    if (sourceTex.format != outTex.format)
+    {
+      throw new ArgumentException("Output texture format must match source texture format.");
     }
 
     var sourceBytes = sourceTex.GetRawTextureData<byte>();
@@ -686,7 +692,7 @@ public static class TextureExt
   /// <param name="texOut"></param>
   public static void BlitToTex(this Texture sourceTex, Texture2D texOut, Material mat = null, bool mipChains = false)
   {
-    var rt = sourceTex.GetTemporaryRT();
+    var rt = texOut.GetTemporaryRT();
     var cachedRT = RenderTexture.active;
 
     RenderTexture.active = rt;

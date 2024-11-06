@@ -11,20 +11,22 @@ public class DataStoreSO : ScriptableObject
   {
     get
     {
-      SetDirty();
+      SetAsDirty();
       return _strings;
     }
   }
 
-  public new void SetDirty() =>
+  public void SetAsDirty()
+  {
 #if UNITY_EDITOR
     UnityEditor.EditorUtility.SetDirty(this);
 #endif
+  }
 
 
   public void RemoveDuplicates()
   {
     _strings = _strings.Distinct().ToList();
-    SetDirty();
+    SetAsDirty();
   }
 }

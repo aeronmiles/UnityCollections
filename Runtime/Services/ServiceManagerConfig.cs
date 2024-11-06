@@ -18,10 +18,12 @@ public class ServiceManagerConfig : ScriptableObject, IServiceConfiguration
   public float initializationTimeout => _initializationTimeout;
   public int serviceInitializationRetryCount => _serviceInitializationRetryCount;
 
-  public new void SetDirty() =>
+  public void SetAsDirty()
+  {
 #if UNITY_EDITOR
     UnityEditor.EditorUtility.SetDirty(this);
 #endif
+  }
 
-  private void OnValidate() => SetDirty();
+  private void OnValidate() => SetAsDirty();
 }
