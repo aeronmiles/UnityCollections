@@ -9,7 +9,11 @@ public class RenderTargetManager : MonoSingletonScene<RenderTargetManager>
   [SerializeField] private bool _renderAll;
   [SerializeField] private RenderTarget[] _renderTargets;
 
-  private void OnValidate()
+  private void OnValidate() => Validate();
+
+  private void Start() => Validate();
+
+  private void Validate()
   {
     foreach (var rt in _renderTargets)
     {
@@ -157,6 +161,7 @@ public class RenderTargetManager : MonoSingletonScene<RenderTargetManager>
       var result = RenderToTexture(out rtOut);
       PostRender();
 
+      Debug.Log($"RenderTargetBase :: {id} rendered: {result}");
       _lastFrame = Time.frameCount;
       return result;
     }

@@ -861,6 +861,12 @@ namespace NativeCameraCapture
         var imageOrientation = (UIImage.Orientation)int.Parse(parts[6], CultureInfo.InvariantCulture);
         bool isMirrored = bool.Parse(parts[7]);
 
+        Debug.Log($"CameraCapture :: ParsePreviewFrameData :: " +
+                  $"Base addr : 0x{baseAddress.ToString("X")}, " +
+                  $"Width: {width}, Height: {height}, " +
+                  $"BytesPerRow: {bytesPerRow}, DataLength: {dataLength}, " +
+                  $"VideoOrientation: {videoOrientation}, ImageOrientation: {imageOrientation}, " +
+                  $"IsMirrored: {isMirrored}");
         return (baseAddress, width, height, bytesPerRow, dataLength, videoOrientation, imageOrientation, isMirrored);
       }
       catch (Exception e)
