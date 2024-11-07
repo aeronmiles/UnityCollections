@@ -21,7 +21,7 @@ namespace NativeCameraCapture
 #if UNITY_IOS
           _cameraService = new IosCameraService();
 #elif UNITY_ANDROID
-          _cameraService = new AndroidCameraService();
+          // _cameraService = new AndroidCameraService();
 #elif UNITY_EDITOR
           // @TODO: Implement editor camera service
           // _cameraService = new UnityEditorCameraService();
@@ -408,7 +408,7 @@ namespace NativeCameraCapture
         // Step 4: Immediately free native memory after successful copy
         try
         {
-          (cameraService as IosCameraService).FreePhotoData(baseAddress);
+          cameraService.FreePhotoData(baseAddress);
           baseAddress = IntPtr.Zero;
           LogMemoryUsage("After freeing native photo memory");
         }
@@ -468,15 +468,7 @@ namespace NativeCameraCapture
         {
           try
           {
-            var cameraService = this.cameraService as IosCameraService;
-            if (cameraService != null)
-            {
-              cameraService?.FreePhotoData(baseAddress);
-            }
-            else
-            {
-              Debug.LogError("CameraCapture :: OnPhotoTaken :: Camera service is not an instance of IosCameraService");
-            }
+            cameraService?.FreePhotoData(baseAddress);
           }
           catch (Exception freeError)
           {
@@ -517,7 +509,7 @@ namespace NativeCameraCapture
         {
           var (ptr, width, height, bytesPerRow, dataLength, videoOrientation, imageOrientation, isMirrored) =
               ParsePreviewFrameData(pointerData);
-          (cameraService as IosCameraService).FreePhotoData(ptr);
+          cameraService.FreePhotoData(ptr);
           ptr = IntPtr.Zero;
         }
         catch (Exception e)
@@ -554,7 +546,7 @@ namespace NativeCameraCapture
         {
           try
           {
-            (cameraService as IosCameraService).FreePhotoData(baseAddress);
+            cameraService.FreePhotoData(baseAddress);
             baseAddress = IntPtr.Zero;
           }
           catch (Exception freeError)
@@ -600,7 +592,7 @@ namespace NativeCameraCapture
         {
           try
           {
-            (cameraService as IosCameraService).FreePhotoData(baseAddress);
+            cameraService.FreePhotoData(baseAddress);
             baseAddress = IntPtr.Zero;
           }
           catch (Exception freeError)
@@ -1111,6 +1103,7 @@ namespace NativeCameraCapture
     void SetColorTemperature(float temperature);
     void SetWhiteBalanceMode(int mode);
     void StopCamera();
+    void FreePhotoData(IntPtr pointer);
   }
 
   public class UnityEditorCameraService : ICameraService
@@ -1124,8 +1117,10 @@ namespace NativeCameraCapture
     public void StopCamera() => throw new NotImplementedException();
     public void SwitchCamera() => throw new NotImplementedException();
     public void TakePhoto() => throw new NotImplementedException();
+    public void FreePhotoData(IntPtr pointer) => throw new NotImplementedException();
   }
 
+#if UNITY_IOS && !UNITY_EDITOR
   public class IosCameraService : ICameraService
   {
     [DllImport("__Internal")]
@@ -1153,22 +1148,16 @@ namespace NativeCameraCapture
 
     public IosCameraService()
     {
-#if UNITY_IOS && !UNITY_EDITOR
       UnityBridge_setup();
-#endif
     }
 
     public void InitializeCamera(string gameObjectName)
     {
-#if UNITY_IOS && !UNITY_EDITOR
       _InitializeCamera(gameObjectName);
-#endif
     }
     public void StartPreview()
     {
-#if UNITY_IOS && !UNITY_EDITOR
       _StartPreview();
-#endif
     }
     public void PausePreview() => _PausePreview();
     public void ResumePreview() => _ResumePreview();
@@ -1179,6 +1168,7 @@ namespace NativeCameraCapture
     public void StopCamera() => _StopCamera();
     public void FreePhotoData(IntPtr pointer) => _FreePhotoData(pointer);
   }
+#endif
 
   #endregion
 }
