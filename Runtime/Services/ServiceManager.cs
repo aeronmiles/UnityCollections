@@ -264,6 +264,7 @@ public class ServiceUpdater : IServiceUpdater
   }
 }
 
+[DefaultExecutionOrder(-100)]
 // Unity MonoBehaviour wrapper following SRP
 public class ServiceManager : MonoSingleton<ServiceManager>
 {
