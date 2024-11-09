@@ -10,6 +10,30 @@ public static class ColorExt
 {
   [MethodImpl(MethodImplOptions.AggressiveInlining)]
   [BurstCompile]
+  public static float4 ToFloat4(this Color c)
+  {
+    return new float4(c.r, c.g, c.b, c.a);
+  }
+
+  [MethodImpl(MethodImplOptions.AggressiveInlining)]
+  [BurstCompile]
+  public static float3 ToFloat3(this Color c)
+  {
+    return new float3(c.r, c.g, c.b);
+  }
+
+  [MethodImpl(MethodImplOptions.AggressiveInlining)]
+  [BurstCompile]
+  public static IEnumerable<float4> ToFloat4(this IEnumerable<Color> colors)
+  {
+    foreach (var c in colors)
+    {
+      yield return new float4(c.r, c.g, c.b, c.a);
+    }
+  }
+
+  [MethodImpl(MethodImplOptions.AggressiveInlining)]
+  [BurstCompile]
   public static IEnumerable<float3> ToFloat3(this IEnumerable<Color> colors)
   {
     foreach (var c in colors)
