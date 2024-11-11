@@ -71,8 +71,8 @@ public static class VisualElementExt
     }
 
     return sb.ToString();
-  }
 #else
     return "HierarchyToString is only available in DEBUG builds";
 #endif
+  }
 }
