@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Text;
 using AM.Unity.Statistics;
 using Unity.Mathematics;
@@ -195,6 +196,8 @@ public static class LogHandlerFactory
     private StreamWriter _currentFileWriter;
     private readonly string _baseFilePath;
     private readonly long _maxFileSizeBytes;
+    private readonly int _maxLogFiles = 50;
+    private readonly bool _preserveErrorLogs = true;
     private long _currentFileSize;
     private readonly object _lockObject = new object();
 
@@ -207,7 +210,50 @@ public static class LogHandlerFactory
     {
       _baseFilePath = baseFilePath;
       _maxFileSizeBytes = maxFileSizeMB * 1024 * 1024; // Convert MB to bytes
+      CleanupLogFiles();
       CreateNewLogFile();
+    }
+
+    private void CleanupLogFiles()
+    {
+      // Get all log files in the directory, preserving error logs if enabled, remove the rest
+      string directory = Path.GetDirectoryName(_baseFilePath);
+      if (directory == null)
+      {
+        throw new InvalidOperationException("The base file path does not contain a valid directory.");
+      }
+      string fileNameWithoutExt = Path.GetFileNameWithoutExtension(_baseFilePath);
+      string extension = Path.GetExtension(_baseFilePath);
+
+      var files = Directory.GetFiles(directory ?? "")
+          .Where(f => Path.GetFileNameWithoutExtension(f).StartsWith(fileNameWithoutExt))
+          .OrderBy(f => File.GetLastWriteTime(f))
+          .ToList();
+
+      if (files.Count > _maxLogFiles)
+      {
+        int excessFiles = files.Count - _maxLogFiles;
+        for (int i = 0; i < files.Count; i++)
+        {
+          if (excessFiles <= 0)
+          {
+            break;
+          }
+          string file = files[i];
+          if (!_preserveErrorLogs || (!file.Contains("Error") && !file.Contains("Exception")))
+          {
+            try
+            {
+              File.Delete(file);
+              excessFiles--;
+            }
+            catch (Exception ex)
+            {
+              Debug.LogError($"Failed to delete file: {file} [EXCEPTION] {ex.Message}");
+            }
+          }
+        }
+      }
     }
 
     private void CreateNewLogFile()
