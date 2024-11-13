@@ -6,9 +6,11 @@ using UnityEngine;
 [ExecuteInEditMode]
 public class RenderTargetManager : MonoSingletonScene<RenderTargetManager>
 {
+  [Header("Debug")]
   [SerializeField] private bool _renderAll;
-  [SerializeField] private RenderTarget[] _renderTargets;
 
+  [Header("Render Targets")]
+  [SerializeField] private RenderTarget[] _renderTargets;
   private void OnValidate() => Validate();
 
   private void Start() => Validate();
@@ -17,24 +19,25 @@ public class RenderTargetManager : MonoSingletonScene<RenderTargetManager>
   {
     foreach (var rt in _renderTargets)
     {
-      rt.OnValidate();
+      rt.Validate();
     }
   }
 
+#if UNITY_EDITOR
   private void Update()
   {
-#if UNITY_EDITOR
     foreach (var rt in _renderTargets)
     {
       if (rt.RenderToTarget || _renderAll)
       {
         _ = rt.Render(out _);
         rt.RenderToTarget = false;
+        Debug.Log($"RenderTargetManager :: {rt.id} rendered: {rt.RenderToTarget}, {_renderAll}");
       }
     }
     _renderAll = false;
-#endif
   }
+#endif
 
   // @TODO: Implement error handling  
   public bool Render(string id, out RenderTexture rtOut)
@@ -132,7 +135,7 @@ public class RenderTargetManager : MonoSingletonScene<RenderTargetManager>
 
     protected abstract bool RenderToTexture(out RenderTexture rtOut);
 
-    public virtual void OnValidate()
+    public virtual void Validate()
     {
       if (camera == null)
       {
@@ -144,7 +147,6 @@ public class RenderTargetManager : MonoSingletonScene<RenderTargetManager>
         var renderHeight = Display.displays[0].renderingHeight;
         renderTexture = new RenderTexture(renderWidth, renderHeight, 24);
       }
-      RenderToTarget = true;
     }
 
     private int _lastFrame = -1;
@@ -160,8 +162,9 @@ public class RenderTargetManager : MonoSingletonScene<RenderTargetManager>
       PreRender();
       var result = RenderToTexture(out rtOut);
       PostRender();
-
+#if UNITY_EDITOR
       Debug.Log($"RenderTargetBase :: {id} rendered: {result}");
+#endif
       _lastFrame = Time.frameCount;
       return result;
     }
@@ -194,10 +197,7 @@ public class RenderTargetManager : MonoSingletonScene<RenderTargetManager>
       this.sourceRendererScale = scale;
     }
 
-    public override void OnValidate()
-    {
-      base.OnValidate();
-    }
+    public override void Validate() => base.Validate();
 
     protected override bool RenderToTexture(out RenderTexture rtOut)
     {
