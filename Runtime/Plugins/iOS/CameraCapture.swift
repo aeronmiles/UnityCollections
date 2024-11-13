@@ -5,13 +5,14 @@ import UIKit
 class CameraCapture: NSObject, AVCapturePhotoCaptureDelegate,
   AVCaptureVideoDataOutputSampleBufferDelegate
 {
+  // MARK: - Properties
+
   private var captureSession: AVCaptureSession?
   private var photoOutput: AVCapturePhotoOutput?
   private var videoDataOutput: AVCaptureVideoDataOutput?
   private var previewLayer: AVCaptureVideoPreviewLayer?
   private var currentCameraPosition: AVCaptureDevice.Position = .back
   private var lastFrameTime: TimeInterval = 0
-  private var photoDataDict: [String: NSNumber] = [:]
   private var gameObjectName: String?
   private var currentVideoOrientation: AVCaptureVideoOrientation = .portrait
   private var isVideoMirrored: Bool = false
@@ -19,13 +20,10 @@ class CameraCapture: NSObject, AVCapturePhotoCaptureDelegate,
 
   // Thread safety
   private let sessionQueue = DispatchQueue(label: "com.camera.sessionQueue")
-  private let photoDataLock = NSLock()
-  // Add new properties for capture state management
   private let captureQueue = DispatchQueue(label: "com.camera.captureQueue")
   private let videoProcessingQueue = DispatchQueue(label: "com.camera.videoProcessingQueue")
   private var isCapturing = false
-  private var lastCaptureTime: TimeInterval = 0
-  private let minimumCaptureInterval: TimeInterval = 0.5  // 500ms minimum between captures
+
   // Camera settings
   private var clampedTemperature: Float = 2500
   private var whiteBalanceMode: AVCaptureDevice.WhiteBalanceMode = .continuousAutoWhiteBalance
@@ -33,6 +31,21 @@ class CameraCapture: NSObject, AVCapturePhotoCaptureDelegate,
   // Resource tracking
   private var currentCameraInput: AVCaptureDeviceInput?
   private var isConfiguring = false
+
+  // Double buffering for preview frames
+  private var previewBuffers: [UnsafeMutablePointer<UInt8>?] = [nil, nil]
+  private var previewBufferSizes: [Int] = [0, 0]
+  private var currentPreviewBufferIndex = 0
+  private var previewBufferReady: [Bool] = [false, false]
+
+  // Double buffering for photo captures
+  private var photoBuffers: [UnsafeMutablePointer<UInt8>?] = [nil, nil]
+  private var photoBufferSizes: [Int] = [0, 0]
+  private var currentPhotoBufferIndex = 0
+  private var photoBufferReady: [Bool] = [false, false]
+  private let bufferResizeLock = DispatchQueue(label: "com.camera.bufferResize")
+  private let minBufferSize = 1024 * 1024  // 1MB minimum
+  private let maxBufferSize = 100 * 1024 * 1024  // 100MB maximum
 
   static let shared = CameraCapture()
 
@@ -129,17 +142,8 @@ class CameraCapture: NSObject, AVCapturePhotoCaptureDelegate,
         return
       }
 
-      // // Check if enough time has passed since last capture
-      // let currentTime = CACurrentMediaTime()
-      // guard currentTime - self.lastCaptureTime >= self.minimumCaptureInterval else {
-      //   print("CameraCapture.swift :: Please wait before taking another photo")
-      //   self.photoOutputError(errorMsg: "Please wait before taking another photo")
-      //   return
-      // }
-
-      // Set capturing state and update last capture time
+      // Set capturing state
       self.isCapturing = true
-      // self.lastCaptureTime = currentTime
 
       print("CameraCapture.swift :: Taking photo")
       guard let photoOutput = self.photoOutput else {
@@ -153,29 +157,8 @@ class CameraCapture: NSObject, AVCapturePhotoCaptureDelegate,
 
       let settings = AVCapturePhotoSettings()
       settings.isAutoStillImageStabilizationEnabled = true
-      settings.flashMode = .on
-      // settings.isHighResolutionPhotoEnabled = false
-      // settings.maxPhotoDimensions = CMVideoDimensions(width: 1920, height: 1080)
+      settings.flashMode = .on  // Set as needed
 
-
-      // // Ensure white balance is set before capturing the photo
-      // if let device = AVCaptureDevice.default(
-      //   .builtInWideAngleCamera,
-      //   for: .video,
-      //   position: self.currentCameraPosition
-      // ) {
-      //   do {
-      //     try self.configureWhiteBalance(device: device, temperature: self.clampedTemperature)
-      //     print(
-      //       "CameraCapture.swift :: Set color temperature to \(self.clampedTemperature)K for photo and video capture."
-      //     )
-      //   } catch {
-      //     print(
-      //       "CameraCapture.swift :: Error setting color temperature: \(error.localizedDescription)")
-      //   }
-      // }
-
-      // Remove the sessionQueue dispatch if it's not necessary
       self.photoOutput?.capturePhoto(with: settings, delegate: self)
     }
   }
@@ -272,7 +255,7 @@ class CameraCapture: NSObject, AVCapturePhotoCaptureDelegate,
       else { return }
 
       do {
-        try self.configureWhiteBalance(device: device, temperature: clampedTemperature)
+        try self.configureWhiteBalance(device: device, temperature: self.clampedTemperature)
         print(
           "CameraCapture.swift :: Set color temperature to \(self.clampedTemperature)K for photo and video capture."
         )
@@ -284,55 +267,48 @@ class CameraCapture: NSObject, AVCapturePhotoCaptureDelegate,
   }
 
   // MARK: - Memory Management
-
-  @objc func freePhotoData(_ pointer: UnsafeMutableRawPointer) {
-    photoDataLock.lock()
-    defer { photoDataLock.unlock() }
-
-    let address = UInt(bitPattern: pointer)
-    // print(
-    //   "CameraCapture.swift :: freePhotoData :: bufferData : addr : 0x\(String(address, radix: 16))")
-
-    let key = String(format: "%lu", address)
-
-    if let dataLengthNumber = photoDataDict.removeValue(forKey: key) {
-      let dataLength = dataLengthNumber.intValue
-      let typedPointer = pointer.bindMemory(to: UInt8.self, capacity: dataLength)
-      typedPointer.deallocate()
-    } else {
-      print("CameraCapture.swift :: Error: Attempted to free unknown pointer")
-    }
-  }
-
+  // Update cleanup to use safe deallocation
   private func cleanup() {
-    captureSession?.stopRunning()
+    bufferResizeLock.sync {
+      captureSession?.stopRunning()
 
-    if let inputs = captureSession?.inputs {
-      for input in inputs {
-        captureSession?.removeInput(input)
+      // Clean up capture session
+      if let inputs = captureSession?.inputs {
+        for input in inputs {
+          captureSession?.removeInput(input)
+        }
       }
-    }
 
-    if let outputs = captureSession?.outputs {
-      for output in outputs {
-        captureSession?.removeOutput(output)
+      if let outputs = captureSession?.outputs {
+        for output in outputs {
+          captureSession?.removeOutput(output)
+        }
       }
+
+      // Clean up preview layer
+      previewLayer?.removeFromSuperlayer()
+      previewLayer = nil
+
+      // Safely deallocate preview buffers
+      for i in 0..<previewBuffers.count {
+        safelyDeallocateBuffer(&previewBuffers[i])
+        previewBufferSizes[i] = 0
+        previewBufferReady[i] = false
+      }
+
+      // Safely deallocate photo buffers
+      for i in 0..<photoBuffers.count {
+        safelyDeallocateBuffer(&photoBuffers[i])
+        photoBufferSizes[i] = 0
+        photoBufferReady[i] = false
+      }
+
+      // Clear references
+      captureSession = nil
+      photoOutput = nil
+      videoDataOutput = nil
+      currentCameraInput = nil
     }
-
-    // Clean up preview layer
-    previewLayer?.removeFromSuperlayer()
-    previewLayer = nil
-
-    // Clear photo data dictionary
-    photoDataLock.lock()
-    photoDataDict.removeAll()
-    photoDataLock.unlock()
-
-    // Clear references
-    captureSession = nil
-    photoOutput = nil
-    videoDataOutput = nil
-    currentCameraInput = nil
   }
 
   // MARK: - Private Setup Methods
@@ -368,7 +344,7 @@ class CameraCapture: NSObject, AVCapturePhotoCaptureDelegate,
       let camera = AVCaptureDevice.default(
         .builtInWideAngleCamera,
         for: .video,
-        position: .back)
+        position: currentCameraPosition)
     else {
       print("CameraCapture.swift :: Failed to get camera device")
       return
@@ -405,11 +381,26 @@ class CameraCapture: NSObject, AVCapturePhotoCaptureDelegate,
         kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA
       ]
       videoDataOutput.alwaysDiscardsLateVideoFrames = true
-      videoDataOutput.setSampleBufferDelegate(self, queue: DispatchQueue.main)
 
       if captureSession.canAddOutput(videoDataOutput) {
         captureSession.addOutput(videoDataOutput)
       }
+    }
+
+    // Allocate double buffers for preview frames
+    let maxPreviewBufferSize = calculateMaxPreviewBufferSize()
+    for i in 0..<2 {
+      previewBuffers[i] = UnsafeMutablePointer<UInt8>.allocate(capacity: maxPreviewBufferSize)
+      previewBufferSizes[i] = maxPreviewBufferSize
+      previewBufferReady[i] = false
+    }
+
+    // Allocate double buffers for photo captures
+    let maxPhotoBufferSize = calculateMaxPhotoBufferSize()
+    for i in 0..<2 {
+      photoBuffers[i] = UnsafeMutablePointer<UInt8>.allocate(capacity: maxPhotoBufferSize)
+      photoBufferSizes[i] = maxPhotoBufferSize
+      photoBufferReady[i] = false
     }
 
     previewLayer = AVCaptureVideoPreviewLayer(session: captureSession)
@@ -491,16 +482,12 @@ class CameraCapture: NSObject, AVCapturePhotoCaptureDelegate,
   @objc private func handleMemoryWarning() {
     sessionQueue.async { [weak self] in
       print("CameraCapture.swift :: Received memory warning")
-      // Clean up any cached data
-      // self?.photoDataLock.lock()
-      // self?.photoDataDict.removeAll()
-      // self?.photoDataLock.unlock()
+      // Handle memory warning if needed
     }
   }
 
   // MARK: - AVCapturePhotoCaptureDelegate
 
-  // Update error handling method
   func photoOutputError(errorMsg: String) {
     print("CameraCapture.swift :: \(errorMsg)")
 
@@ -514,16 +501,6 @@ class CameraCapture: NSObject, AVCapturePhotoCaptureDelegate,
     }
   }
 
-  // Add method to check capture state
-  @objc func isPhotoCapturing() -> Bool {
-    var capturing = false
-    captureQueue.sync {
-      capturing = self.isCapturing
-    }
-    return capturing
-  }
-
-  // Update photo output delegate method
   func photoOutput(
     _ output: AVCapturePhotoOutput,
     didFinishProcessingPhoto photo: AVCapturePhoto,
@@ -537,28 +514,49 @@ class CameraCapture: NSObject, AVCapturePhotoCaptureDelegate,
     }
 
     if let error = error {
-      self.photoOutputError(
-        errorMsg: "CameraCapture.swift :: Error capturing photo: \(error.localizedDescription)")
+      self.photoOutputError(errorMsg: "Error capturing photo: \(error.localizedDescription)")
+      return
+    }
+
+    let bufferIndex = currentPhotoBufferIndex
+    guard var buffer = photoBuffers[bufferIndex] else {
+      print("CameraCapture.swift :: Photo buffer is nil")
+      self.photoOutputError(errorMsg: "Photo buffer is nil")
+      return
+    }
+
+    if photoBufferReady[bufferIndex] {
+      print("CameraCapture.swift :: Photo buffer is busy")
+      self.photoOutputError(errorMsg: "Photo buffer is busy")
       return
     }
 
     guard let photoData = photo.fileDataRepresentation() else {
-      self.photoOutputError(
-        errorMsg: "CameraCapture.swift :: Error capturing photo: No file data representation")
+      self.photoOutputError(errorMsg: "Error capturing photo: No file data representation")
       return
     }
-    let pointer = UnsafeMutablePointer<UInt8>.allocate(capacity: photoData.count)
-    photoData.copyBytes(to: pointer, count: photoData.count)
-    // print pointer hexadecimal address
-    // print("CameraCapture.swift :: photoOutput :: pointer : addr : \(String(format: "%p", pointer))")
 
-    photoDataLock.lock()
-    let key = String(format: "%lu", UInt(bitPattern: pointer))
-    photoDataDict[key] = NSNumber(value: photoData.count)
-    photoDataLock.unlock()
+    let dataLength = photoData.count
 
+    // Check if buffer needs resizing
+    if dataLength > photoBufferSizes[bufferIndex] {
+      if !resizeBuffer(index: bufferIndex, type: .photo, requiredSize: dataLength) {
+        self.photoOutputError(errorMsg: "Failed to resize photo buffer")
+        return
+      }
+      // Re-get buffer pointer after resize
+      guard let resizedBuffer = photoBuffers[bufferIndex] else {
+        self.photoOutputError(errorMsg: "Photo buffer is nil after resize")
+        return
+      }
+      buffer = resizedBuffer
+    }
+
+    // Copy data into the buffer
+    photoData.copyBytes(to: buffer, count: dataLength)
+
+    // Get photo dimensions
     guard let cgImage = photo.cgImageRepresentation() else {
-      freePhotoData(pointer)
       self.photoOutputError(
         errorMsg: "CameraCapture.swift :: Error getting CGImage representation of photo")
       return
@@ -567,21 +565,24 @@ class CameraCapture: NSObject, AVCapturePhotoCaptureDelegate,
     let width = cgImage.width
     let height = cgImage.height
 
-    var isMirrored = false
-    if let connection = output.connection(with: .video) {
-      isMirrored = connection.isVideoMirrored
-    }
+    // Update video orientation and mirroring state
+    self.updateVideoOrientation()
+    let imageOrientation = self.getImageOrientation()
+    let isMirrored = self.currentCameraPosition == .front
 
-    let imageOrientation = getImageOrientation()
+    // Prepare pointer data
     let pointerData =
-      "\(UInt(bitPattern: pointer)),\(width),\(height),\(photoData.count),\(currentVideoOrientation.rawValue),\(imageOrientation.rawValue),\(isMirrored)"
+      "\(UInt(bitPattern: buffer)),\(width),\(height),\(dataLength),\(currentVideoOrientation.rawValue),\(imageOrientation.rawValue),\(isMirrored)"
 
+    // Mark the buffer as ready
+    photoBufferReady[bufferIndex] = true
+
+    // Switch to the next buffer
+    currentPhotoBufferIndex = (currentPhotoBufferIndex + 1) % 2
+
+    // Send data to Unity
     DispatchQueue.main.async { [weak self] in
-      guard let self = self else {
-        self?.freePhotoData(pointer)
-        return
-      }
-
+      guard let self = self else { return }
       UnityBridge.sendMessage(
         toGameObject: self.gameObjectName,
         methodName: "OnPhotoTaken",
@@ -590,17 +591,31 @@ class CameraCapture: NSObject, AVCapturePhotoCaptureDelegate,
     }
   }
 
-  // MARK: - AVCaptureVideoDataOutputSampleBufferDelegate (continued)
+  // MARK: - AVCaptureVideoDataOutputSampleBufferDelegate
+
   func captureOutput(
     _ output: AVCaptureOutput,
     didOutput sampleBuffer: CMSampleBuffer,
     from connection: AVCaptureConnection
   ) {
     let currentTime = CACurrentMediaTime()
-    guard currentTime - lastFrameTime >= 0.05 else { return }  // Limit to 10 fps
+    guard currentTime - lastFrameTime >= 0.05 else { return }  // Limit to 20 fps
     guard !self.isPaused else { return }
     guard !self.isCapturing else { return }
     lastFrameTime = currentTime
+
+    // Get the current buffer index
+    let bufferIndex = currentPreviewBufferIndex
+    guard var buffer = previewBuffers[bufferIndex] else {
+      print("CameraCapture.swift :: Preview buffer is nil")
+      return
+    }
+
+    // Ensure the buffer is not currently being read
+    if previewBufferReady[bufferIndex] {
+      print("CameraCapture.swift :: Preview buffer is busy, dropping frame")
+      return
+    }
 
     guard let imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
       print("CameraCapture.swift :: Failed to get image buffer")
@@ -617,26 +632,27 @@ class CameraCapture: NSObject, AVCapturePhotoCaptureDelegate,
     let bytesPerRow = CVPixelBufferGetBytesPerRow(imageBuffer)
     let dataLength = height * bytesPerRow
 
+    // Check if buffer needs resizing
+    if dataLength > previewBufferSizes[bufferIndex] {
+      if !resizeBuffer(index: bufferIndex, type: .preview, requiredSize: dataLength) {
+        print("CameraCapture.swift :: Failed to resize preview buffer")
+        return
+      }
+      // Re-get buffer pointer after resize
+      guard let resizedBuffer = previewBuffers[bufferIndex] else {
+        print("CameraCapture.swift :: Preview buffer is nil after resize")
+        return
+      }
+      buffer = resizedBuffer
+    }
+
     guard let baseAddress = CVPixelBufferGetBaseAddress(imageBuffer) else {
       print("CameraCapture.swift :: Failed to get base address")
       return
     }
 
-    // Create Data object from buffer - this creates a copy of the data
-    let bufferData = Data(bytes: baseAddress, count: dataLength)
-    // Allocate new memory and copy the frame data
-    let pointer = UnsafeMutablePointer<UInt8>.allocate(capacity: dataLength)
-    bufferData.copyBytes(to: pointer, count: dataLength)
-
-    // print pointer hexadecimal address
-    // print(
-    //   "CameraCapture.swift :: catureOutput :: pointer : addr : \(String(format: "%p", pointer))")
-
-    // Store the data length in the dictionary for cleanup
-    photoDataLock.lock()
-    let key = String(format: "%lu", UInt(bitPattern: pointer))
-    photoDataDict[key] = NSNumber(value: dataLength)
-    photoDataLock.unlock()
+    // Copy data into the buffer
+    memcpy(buffer, baseAddress, dataLength)
 
     // Update video orientation and mirroring state
     if connection.isVideoOrientationSupported {
@@ -649,30 +665,21 @@ class CameraCapture: NSObject, AVCapturePhotoCaptureDelegate,
 
     let imageOrientation = getImageOrientation()
 
+    // Prepare pointer data
     let pointerData =
-      "\(UInt(bitPattern: pointer)),\(width),\(height),\(bytesPerRow),\(dataLength),\(currentVideoOrientation.rawValue),\(imageOrientation.rawValue),\(isVideoMirrored)"
+      "\(UInt(bitPattern: buffer)),\(width),\(height),\(bytesPerRow),\(dataLength),\(currentVideoOrientation.rawValue),\(imageOrientation.rawValue),\(isVideoMirrored)"
 
-    // Capture weak self and pointer for cleanup in case of failure
-    weak var weakSelf = self
-    DispatchQueue.main.async {
-      // Check if we're paused first
-      if weakSelf?.isPaused == true {
-        weakSelf?.freePhotoData(pointer)
-        return
-      }
+    // Mark the buffer as ready
+    previewBufferReady[bufferIndex] = true
 
-      // Ensure we still have a valid self and gameObjectName
-      guard let strongSelf = weakSelf,
-        let gameObjectName = strongSelf.gameObjectName
-      else {
-        // If self is deallocated, ensure we free the pointer
-        weakSelf?.freePhotoData(pointer)
-        return
-      }
+    // Switch to the next buffer
+    currentPreviewBufferIndex = (currentPreviewBufferIndex + 1) % 2
 
-      // Send the frame data to Unity
+    // Send data to Unity
+    DispatchQueue.main.async { [weak self] in
+      guard let self = self else { return }
       UnityBridge.sendMessage(
-        toGameObject: gameObjectName,
+        toGameObject: self.gameObjectName,
         methodName: "OnPreviewFrameReceived",
         message: pointerData
       )
@@ -684,11 +691,46 @@ class CameraCapture: NSObject, AVCapturePhotoCaptureDelegate,
     didDrop sampleBuffer: CMSampleBuffer,
     from connection: AVCaptureConnection
   ) {
-    // Log dropped frames for debugging performance issues
+    // Handle dropped frames if needed
     print("CameraCapture.swift :: Dropped frame")
   }
 
+  // MARK: - Buffer Management
+
+  @objc func markPreviewBufferAsRead(_ pointer: UnsafeMutableRawPointer) {
+    for i in 0..<previewBuffers.count {
+      if previewBuffers[i]! == pointer {
+        previewBufferReady[i] = false
+        break
+      }
+    }
+  }
+
+  @objc func markPhotoBufferAsRead(_ pointer: UnsafeMutableRawPointer) {
+    for i in 0..<photoBuffers.count {
+      if photoBuffers[i]! == pointer {
+        photoBufferReady[i] = false
+        break
+      }
+    }
+  }
+
   // MARK: - Utility Methods
+
+  private func calculateMaxPreviewBufferSize() -> Int {
+    // Calculate the maximum buffer size based on expected maximum resolution
+    // For example, assume maximum resolution of 1920x1080 with 4 bytes per pixel
+    let width = 1920
+    let height = 1080
+    let bytesPerPixel = 4
+    return width * height * bytesPerPixel
+  }
+
+  private func calculateMaxPhotoBufferSize() -> Int {
+    // Estimate the maximum photo size
+    // For example, 10 MB
+    return 10 * 1024 * 1024  // 10 MB
+  }
 
   private func getImageOrientation() -> UIImage.Orientation {
     let isMirrored = currentCameraPosition == .front
@@ -713,9 +755,9 @@ class CameraCapture: NSObject, AVCapturePhotoCaptureDelegate,
   ) -> AVCaptureDevice.WhiteBalanceGains {
     var normalizedGains = gains
     let maxGain = device.maxWhiteBalanceGain
-    normalizedGains.redGain = min(normalizedGains.redGain, maxGain)
-    normalizedGains.greenGain = min(normalizedGains.greenGain, maxGain)
-    normalizedGains.blueGain = min(normalizedGains.blueGain, maxGain)
+    normalizedGains.redGain = min(max(normalizedGains.redGain, 1.0), maxGain)
+    normalizedGains.greenGain = min(max(normalizedGains.greenGain, 1.0), maxGain)
+    normalizedGains.blueGain = min(max(normalizedGains.blueGain, 1.0), maxGain)
     return normalizedGains
   }
 }
@@ -776,7 +818,89 @@ extension CameraCapture {
       )
     }
   }
+
+  private func resizeBuffer(index: Int, type: BufferType, requiredSize: Int) -> Bool {
+    bufferResizeLock.sync {
+      let currentSize = type == .preview ? previewBufferSizes[index] : photoBufferSizes[index]
+      let newSize = calculateNewBufferSize(currentSize: currentSize, requiredSize: requiredSize)
+
+      // Check if new size exceeds maximum
+      guard newSize <= maxBufferSize else {
+        print(
+          "CameraCapture.swift :: Required buffer size \(requiredSize) exceeds maximum allowed size"
+        )
+        return false
+      }
+
+      // Keep track of old buffer
+      let oldBuffer: UnsafeMutablePointer<UInt8>?
+      if type == .preview {
+        oldBuffer = previewBuffers[index]
+      } else {
+        oldBuffer = photoBuffers[index]
+      }
+
+      // Attempt to allocate new buffer
+      let newBuffer: UnsafeMutablePointer<UInt8>?
+      do {
+        newBuffer = UnsafeMutablePointer<UInt8>.allocate(capacity: newSize)
+      } catch {
+        print("CameraCapture.swift :: Failed to allocate new buffer of size \(newSize)")
+        return false
+      }
+
+      // Copy existing data if there's an old buffer
+      if let existingBuffer = oldBuffer {
+        let copySize = min(currentSize, newSize)
+        newBuffer?.assign(from: existingBuffer, count: copySize)
+      }
+
+      // Update state with new buffer
+      if type == .preview {
+        // Deallocate old buffer before assigning new one
+        previewBuffers[index]?.deallocate()
+        previewBuffers[index] = newBuffer
+        previewBufferSizes[index] = newSize
+        previewBufferReady[index] = false
+      } else {
+        // Deallocate old buffer before assigning new one
+        photoBuffers[index]?.deallocate()
+        photoBuffers[index] = newBuffer
+        photoBufferSizes[index] = newSize
+        photoBufferReady[index] = false
+      }
+
+      print(
+        "CameraCapture.swift :: Successfully resized \(type) buffer \(index) from \(currentSize) to \(newSize) bytes"
+      )
+      return true
+    }
+  }
+
+  // Helper method to safely deallocate a buffer
+  private func safelyDeallocateBuffer(_ buffer: inout UnsafeMutablePointer<UInt8>?) {
+    if let ptr = buffer {
+      ptr.deallocate()
+      buffer = nil
+    }
+  }
+
+  private func calculateNewBufferSize(currentSize: Int, requiredSize: Int) -> Int {
+    // Calculate new size with some padding for future growth
+    let growthFactor = 1.5
+    let newSize = max(Int(Double(requiredSize) * growthFactor), minBufferSize)
+    // Round up to nearest MB for efficiency
+    let megabyte = 1024 * 1024
+    return ((newSize + megabyte - 1) / megabyte) * megabyte
+  }
+
+  private enum BufferType {
+    case preview
+    case photo
+  }
 }
+
+// MARK: - C Functions for Bridging
 
 @_cdecl("_InitializeCamera")
 public func _InitializeCamera(_ gameObjectName: UnsafePointer<CChar>) {
@@ -824,7 +948,12 @@ public func _StopCamera() {
   CameraCapture.shared.stopCamera()
 }
 
-@_cdecl("_FreePhotoData")
-public func _FreePhotoData(_ pointer: UnsafeMutableRawPointer) {
-  CameraCapture.shared.freePhotoData(pointer)
+@_cdecl("_MarkPreviewBufferAsRead")
+public func _MarkPreviewBufferAsRead(_ pointer: UnsafeMutableRawPointer) {
+  CameraCapture.shared.markPreviewBufferAsRead(pointer)
+}
+
+@_cdecl("_MarkPhotoBufferAsRead")
+public func _MarkPhotoBufferAsRead(_ pointer: UnsafeMutableRawPointer) {
+  CameraCapture.shared.markPhotoBufferAsRead(pointer)
 }

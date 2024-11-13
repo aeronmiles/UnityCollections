@@ -5,12 +5,17 @@ using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Linq;
 using AVFoundation;
+using UnityEngine.AI;
 
 
 namespace NativeCameraCapture
 {
   public class CameraCapture : MonoBehaviour
   {
+
+    [Header("Debug")]
+    [SerializeField] private Texture2D _debugEditorPhoto;
+
     private ICameraService _cameraService;
     private ICameraService cameraService
     {
@@ -57,6 +62,18 @@ namespace NativeCameraCapture
         cameraService?.InitializeCamera(gameObject.name);
         // LogMemoryUsage("After camera initialization");
       }
+      if (_debugEditorPhoto == null)
+      {
+        _debugEditorPhoto = new Texture2D(1, 1);
+        _debugEditorPhoto.SetPixel(0, 0, Color.red);
+      }
+      if (!_debugEditorPhoto.isReadable)
+      {
+        // Ensure correct format for editor photo
+        var temp = new Texture2D(_debugEditorPhoto.width, _debugEditorPhoto.height, TextureFormat.RGBA32, false);
+        temp.SetPixels32(_debugEditorPhoto.GetPixels32());
+        _debugEditorPhoto = temp;
+      }
     }
 
     private void OnEnable()
@@ -74,6 +91,18 @@ namespace NativeCameraCapture
         StopCamera();
       }
     }
+
+#if UNITY_EDITOR
+    private void Update()
+    {
+      if (isCameraActive && !isPreviewPaused)
+      {
+        // Simulate preview frame update
+        var frameData = _debugEditorPhoto.GetRawTextureData();
+        UpdatePreviewTexture(frameData, _debugEditorPhoto.width, _debugEditorPhoto.height, AVCaptureVideoOrientation.Portrait, UIImage.Orientation.Up, false);
+      }
+    }
+#endif
 
     private void OnApplicationPause(bool pauseStatus)
     {
@@ -130,10 +159,10 @@ namespace NativeCameraCapture
 
     private void CleanupResources(bool force = false)
     {
-      LogMemoryUsage("Before cleanup");
+      // LogMemoryUsage("Before cleanup");
       _ = Resources.UnloadUnusedAssets();
       GC.Collect();
-      LogMemoryUsage("After cleanup");
+      // LogMemoryUsage("After cleanup");
     }
 
     #endregion
@@ -171,6 +200,11 @@ namespace NativeCameraCapture
         return;
       }
 
+#if UNITY_EDITOR
+      isCameraActive = false;
+      return;
+#endif
+
       try
       {
         if (isCameraActive && !isPreviewPaused)
@@ -192,9 +226,14 @@ namespace NativeCameraCapture
         return;
       }
 
+#if UNITY_EDITOR
+      isCameraActive = true;
+      return;
+#endif
+
       try
       {
-        LogMemoryUsage("Before resuming preview");
+        // LogMemoryUsage("Before resuming preview");
         if (!isCameraActive)
         {
           cameraService?.InitializeCamera(gameObject.name);
@@ -204,7 +243,7 @@ namespace NativeCameraCapture
         {
           cameraService?.ResumePreview();
         }
-        LogMemoryUsage("After resuming preview");
+        // LogMemoryUsage("After resuming preview");
       }
       catch (Exception e)
       {
@@ -222,13 +261,13 @@ namespace NativeCameraCapture
 
       try
       {
-        LogMemoryUsage("Before stopping camera");
+        // LogMemoryUsage("Before stopping camera");
         if (isCameraActive)
         {
           cameraService?.StopCamera();
           // CleanupResources();
         }
-        LogMemoryUsage("After stopping camera");
+        // LogMemoryUsage("After stopping camera");
       }
       catch (Exception e)
       {
@@ -244,18 +283,23 @@ namespace NativeCameraCapture
         return;
       }
 
+#if UNITY_EDITOR
+      UpdatePhotoTexture(_debugEditorPhoto.GetRawTextureData(), AVCaptureVideoOrientation.Portrait, UIImage.Orientation.Up, false);
+      return;
+#endif
+
       if (Interlocked.CompareExchange(ref _isCapturing, 1, 0) == 0)
       {
         try
         {
-          LogMemoryUsage("Before taking photo");
+          // LogMemoryUsage("Before taking photo");
           cameraService?.TakePhoto();
         }
         catch (Exception e)
         {
           Debug.LogError($"CameraCapture :: TakePhoto :: Error taking photo: {e.Message}");
           _ = Interlocked.Exchange(ref _isCapturing, 0);
-          LogMemoryUsage("After photo error");
+          // LogMemoryUsage("After photo error");
         }
       }
       else
@@ -326,7 +370,7 @@ namespace NativeCameraCapture
       if (!_isApplicationQuitting)
       {
         isCameraActive = true;
-        LogMemoryUsage("Camera initialized");
+        // LogMemoryUsage("Camera initialized");
       }
     }
 
@@ -334,9 +378,9 @@ namespace NativeCameraCapture
     private void OnCameraStopped(string _)
     {
       isCameraActive = false;
-      LogMemoryUsage("Before camera stopped cleanup");
+      // LogMemoryUsage("Before camera stopped cleanup");
       // CleanupResources();
-      LogMemoryUsage("After camera stopped cleanup");
+      // LogMemoryUsage("After camera stopped cleanup");
     }
 
     [AOT.MonoPInvokeCallback(typeof(Action<string>))]
@@ -354,7 +398,7 @@ namespace NativeCameraCapture
       }
 
       Debug.LogError($"CameraCapture :: OnPhotoTakenError :: {errorMessage}");
-      LogMemoryUsage("Photo error");
+      // LogMemoryUsage("Photo error");
       _ = Interlocked.Exchange(ref _isCapturing, 0);
       OnPhotoCapturedError?.Invoke(errorMessage);
     }
@@ -367,10 +411,11 @@ namespace NativeCameraCapture
       /// ===================================== ///
       if (_isApplicationQuitting)
       {
+        // Memory management is responsibility of native code
         return;
       }
 
-      LogMemoryUsage("Before processing photo");
+      // LogMemoryUsage("Before processing photo");
       IntPtr baseAddress = IntPtr.Zero;
       byte[] photoBytes = null;
 
@@ -405,12 +450,12 @@ namespace NativeCameraCapture
           throw new InvalidOperationException($"Failed to copy photo data: {e.Message}", e);
         }
 
-        // Step 4: Immediately free native memory after successful copy
+        // Step 4: Immediately mark buffer as read after successful copy
         try
         {
-          cameraService.FreePhotoData(baseAddress);
+          // cameraService.FreePhotoData(baseAddress);
+          cameraService.MarkPhotoBufferAsRead(baseAddress);
           baseAddress = IntPtr.Zero;
-          LogMemoryUsage("After freeing native photo memory");
         }
         catch (Exception e)
         {
@@ -439,13 +484,11 @@ namespace NativeCameraCapture
           {
             UpdatePhotoTexture(
                 capturedPhotoBytes,
-                capturedParameters.width,
-                capturedParameters.height,
                 capturedParameters.videoOrientation,
                 capturedParameters.imageOrientation,
                 capturedParameters.isMirrored
             );
-            LogMemoryUsage("After updating photo texture");
+            // LogMemoryUsage("After updating photo texture");
           }
           catch (Exception e)
           {
@@ -468,7 +511,8 @@ namespace NativeCameraCapture
         {
           try
           {
-            cameraService?.FreePhotoData(baseAddress);
+            // cameraService?.FreePhotoData(baseAddress);
+            cameraService.MarkPhotoBufferAsRead(baseAddress);
           }
           catch (Exception freeError)
           {
@@ -482,7 +526,7 @@ namespace NativeCameraCapture
         // Notify error
         OnPhotoCapturedError?.Invoke($"Failed to process photo: {e.Message}");
 
-        LogMemoryUsage("After photo error cleanup");
+        // LogMemoryUsage("After photo error cleanup");
       }
       finally
       {
@@ -509,7 +553,8 @@ namespace NativeCameraCapture
         {
           var (ptr, width, height, bytesPerRow, dataLength, videoOrientation, imageOrientation, isMirrored) =
               ParsePreviewFrameData(pointerData);
-          cameraService.FreePhotoData(ptr);
+          // cameraService.FreePhotoData(ptr);
+          cameraService.MarkPreviewBufferAsRead(ptr);
           ptr = IntPtr.Zero;
         }
         catch (Exception e)
@@ -531,6 +576,7 @@ namespace NativeCameraCapture
         // Validate frame parameters
         if (!ValidatePreviewFrameParameters(baseAddress, width, height, bytesPerRow, dataLength))
         {
+          Debug.LogError("CameraCapture :: OnPreviewFrameReceived :: Invalid frame parameters");
           return;
         }
 
@@ -541,12 +587,13 @@ namespace NativeCameraCapture
         byte[] frameData = new byte[dataLength];
         Marshal.Copy(baseAddress, frameData, 0, dataLength);
 
-        // Immediately free native memory
+        // Immediately mark buffer as read
         try
         {
           try
           {
-            cameraService.FreePhotoData(baseAddress);
+            // cameraService.FreePhotoData(baseAddress);
+            cameraService.MarkPreviewBufferAsRead(baseAddress);
             baseAddress = IntPtr.Zero;
           }
           catch (Exception freeError)
@@ -592,7 +639,8 @@ namespace NativeCameraCapture
         {
           try
           {
-            cameraService.FreePhotoData(baseAddress);
+            // cameraService.FreePhotoData(baseAddress);
+            cameraService.MarkPreviewBufferAsRead(baseAddress);
             baseAddress = IntPtr.Zero;
           }
           catch (Exception freeError)
@@ -645,9 +693,7 @@ namespace NativeCameraCapture
       return true;
     }
 
-    private void UpdatePhotoTexture(byte[] photoBytes, int width, int height,
-        AVCaptureVideoOrientation videoOrientation,
-        UIImage.Orientation imageOrientation, bool isMirrored)
+    private void UpdatePhotoTexture(byte[] photoBytes, AVCaptureVideoOrientation videoOrientation, UIImage.Orientation imageOrientation, bool isMirrored)
     {
       if (photoBytes == null || photoBytes.Length == 0)
       {
@@ -659,16 +705,20 @@ namespace NativeCameraCapture
         Texture2D newTexture = null;
         try
         {
-          LogMemoryUsage("Before creating new photo texture");
+          // LogMemoryUsage("Before creating new photo texture");
 
           // Create the new texture before destroying the old one
-          newTexture = new Texture2D(width, height, TextureFormat.RGBA32, false);
+          newTexture = new Texture2D(1, 1, TextureFormat.RGBA32, false);
 
+#if UNITY_EDITOR
+          newTexture.LoadRawTextureData(photoBytes);
+#else
           // Load the image data
           if (!newTexture.LoadImage(photoBytes))
           {
             throw new InvalidOperationException("Failed to load the image data into the texture");
           }
+#endif
 
           // If we successfully created and loaded the new texture, destroy the old one
           var oldTexture = _photoTexture;
@@ -691,7 +741,7 @@ namespace NativeCameraCapture
           }
 
           Debug.Log($"CameraCapture :: Loaded photo texture - Width: {_photoTexture.width}, Height: {_photoTexture.height}");
-          LogMemoryUsage("After creating new photo texture");
+          // LogMemoryUsage("After creating new photo texture");
 
           var (rotation, scale) = CalculateRotationAndScale(videoOrientation, imageOrientation, isMirrored);
           OnPhotoCaptured?.Invoke(_photoTexture, rotation, scale, isMirrored);
@@ -1103,7 +1153,9 @@ namespace NativeCameraCapture
     void SetColorTemperature(float temperature);
     void SetWhiteBalanceMode(int mode);
     void StopCamera();
-    void FreePhotoData(IntPtr pointer);
+    // void FreePhotoData(IntPtr pointer);
+    void MarkPreviewBufferAsRead(IntPtr pointer);
+    void MarkPhotoBufferAsRead(IntPtr pointer);
   }
 
   public class UnityEditorCameraService : ICameraService
@@ -1117,10 +1169,12 @@ namespace NativeCameraCapture
     public void StopCamera() => throw new NotImplementedException();
     public void SwitchCamera() => throw new NotImplementedException();
     public void TakePhoto() => throw new NotImplementedException();
-    public void FreePhotoData(IntPtr pointer) => throw new NotImplementedException();
+    // public void FreePhotoData(IntPtr pointer) => throw new NotImplementedException();
+    public void MarkPreviewBufferAsRead(IntPtr pointer) => throw new NotImplementedException();
+    public void MarkPhotoBufferAsRead(IntPtr pointer) => throw new NotImplementedException();
   }
 
-#if UNITY_IOS && !UNITY_EDITOR
+#if UNITY_IOS
   public class IosCameraService : ICameraService
   {
     [DllImport("__Internal")]
@@ -1135,8 +1189,8 @@ namespace NativeCameraCapture
     private static extern void _ResumePreview();
     [DllImport("__Internal")]
     private static extern void _TakePhoto();
-    [DllImport("__Internal")]
-    private static extern void _FreePhotoData(IntPtr pointer);
+    // [DllImport("__Internal")]
+    // private static extern void _FreePhotoData(IntPtr pointer);
     [DllImport("__Internal")]
     private static extern void _SwitchCamera();
     [DllImport("__Internal")]
@@ -1148,16 +1202,22 @@ namespace NativeCameraCapture
 
     public IosCameraService()
     {
+#if !UNITY_EDITOR
       UnityBridge_setup();
+#endif
     }
 
     public void InitializeCamera(string gameObjectName)
     {
+#if !UNITY_EDITOR
       _InitializeCamera(gameObjectName);
+#endif
     }
     public void StartPreview()
     {
+#if !UNITY_EDITOR
       _StartPreview();
+#endif
     }
     public void PausePreview() => _PausePreview();
     public void ResumePreview() => _ResumePreview();
@@ -1166,7 +1226,16 @@ namespace NativeCameraCapture
     public void SetWhiteBalanceMode(int mode) => _SetWhiteBalanceMode(mode);
     public void SetColorTemperature(float temperature) => _SetColorTemperature(temperature);
     public void StopCamera() => _StopCamera();
-    public void FreePhotoData(IntPtr pointer) => _FreePhotoData(pointer);
+    // public void FreePhotoData(IntPtr pointer) => _FreePhotoData(pointer); [DllImport("__Internal")]
+    [DllImport("__Internal")]
+    private static extern void _MarkPreviewBufferAsRead(IntPtr pointer);
+
+    [DllImport("__Internal")]
+    private static extern void _MarkPhotoBufferAsRead(IntPtr pointer);
+
+    public void MarkPreviewBufferAsRead(IntPtr pointer) => _MarkPreviewBufferAsRead(pointer);
+
+    public void MarkPhotoBufferAsRead(IntPtr pointer) => _MarkPhotoBufferAsRead(pointer);
   }
 #endif
 
