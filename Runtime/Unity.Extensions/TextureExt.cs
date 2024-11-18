@@ -49,7 +49,7 @@ public static class TextureExt
       filterMode = texture.filterMode,
       wrapMode = texture.wrapMode
     };
-    tex.name = "TextureExt::ToTexture2D::tex";
+    // tex.name = "TextureExt::ToTexture2D::tex";
     Graphics.CopyTexture(texture, 0, 0, tex, 0, 0);
     return tex;
   }
@@ -61,7 +61,7 @@ public static class TextureExt
       filterMode = texture.filterMode,
       wrapMode = texture.wrapMode
     };
-    tex.name = "TextureExt::ConvertToHSV::tex";
+    // tex.name = "TextureExt::ConvertToHSV::tex";
     var pixels = texture.GetPixels();
     int l = pixels.Length;
     for (int i = 0; i < l; i++)
@@ -476,7 +476,7 @@ public static class TextureExt
 
     // Render to texture
     var rt = tex.GetTemporaryRT();
-    rt.name = "TextureExt::TileRotate::rt";
+    // rt.name = "TextureExt::TileRotate::rt";
 
     TileRotateMaterial.SetTexture("_MainTex", tex);
     TileRotateMaterial.SetVector("_TileXY", new Vector4(tileX, tileY, 0.0f, 0.0f));
@@ -507,7 +507,7 @@ public static class TextureExt
   public static void BlitToTexCropped(this Texture sourceTex, Texture2D texOut, Material mat = null, bool mipChains = false)
   {
     var rt = sourceTex.GetTemporaryRT();
-    rt.name = "TextureExt::BlitToTexCropped::rt";
+    // rt.name = "TextureExt::BlitToTexCropped::rt";
 
     RenderTexture.active = rt;
     if (mat != null)
@@ -545,7 +545,7 @@ public static class TextureExt
     // int sourceHeight = sourceTex.height;
 
     var rt = sourceTex.GetTemporaryRT();
-    rt.name = "TextureExt::BlitToTexCentre::rt";
+    // rt.name = "TextureExt::BlitToTexCentre::rt";
     RenderTexture.active = rt;
     GL.Clear(true, true, Color.black);
 
@@ -568,7 +568,7 @@ public static class TextureExt
     // float offsetY = (texOut.height - (sourceTex.height * minScale)) * 0.5f;
 
     var texRT = texOut.GetTemporaryRT();
-    texRT.name = "TextureExt::BlitToTexCentre::texRT";
+    // texRT.name = "TextureExt::BlitToTexCentre::texRT";
     Graphics.Blit(rt, texRT);
 
     RenderTexture.active = texRT;
@@ -624,7 +624,7 @@ public static class TextureExt
 
     // Create a temporary RenderTexture
     RenderTexture tempRT = destination.GetTemporaryRT();
-    tempRT.name = "TextureExt::BlitToTexCentreFitted::tempRT";
+    // tempRT.name = "TextureExt::BlitToTexCentreFitted::tempRT";
 
     // Set the active RenderTexture
     RenderTexture.active = tempRT;

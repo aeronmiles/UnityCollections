@@ -41,7 +41,7 @@ public static class TextureUtil
     {
       FileData = File.ReadAllBytes(FilePath);
       tex = new Texture2D(2, 2);
-      tex.name = "TextureUtil::LoadTextureFromPath::tex";
+      // tex.name = "TextureUtil::LoadTextureFromPath::tex";
       return tex.LoadImage(FileData);
     }
     tex = null;
@@ -71,7 +71,7 @@ public static class TextureUtil
         {
           // Create a new Texture2D with the specified format
           Texture2D texture = new Texture2D(downloadedTexture.width, downloadedTexture.height, textureFormat, false);
-          texture.name = "TextureUtil::LoadImage::texture";
+          // texture.name = "TextureUtil::LoadImage::texture";
           // Copy the pixels from the downloaded texture to the new texture
           texture.SetPixels32(downloadedTexture.GetPixels32());
           texture.Apply();

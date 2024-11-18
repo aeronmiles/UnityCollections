@@ -27,7 +27,7 @@ public class RenderTexturePool : IFactoryPool<RenderTexturePool, RenderTexture>
     var rt = new RenderTexture(this._width, this._height, this._depth, this._format, this._mipCount)
     {
     };
-    rt.name = $"RenderTexturePool::Create:rt";
+    // rt.name = $"RenderTexturePool::Create:rt";
     return rt;
   }
 
