@@ -24,9 +24,11 @@ public class RenderTexturePool : IFactoryPool<RenderTexturePool, RenderTexture>
 
   public RenderTexture Create()
   {
-    return new RenderTexture(this._width, this._height, this._depth, this._format, this._mipCount)
+    var rt = new RenderTexture(this._width, this._height, this._depth, this._format, this._mipCount)
     {
     };
+    rt.name = $"RenderTexturePool::Create:rt";
+    return rt;
   }
 
   public bool Equals(RenderTexturePool rtt)

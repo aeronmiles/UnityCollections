@@ -4,6 +4,8 @@ using System.Linq;
 
 public static class VisualElementExt
 {
+  public static bool HasActiveClass(this VisualElement el) => el.ClassListContains("active");
+
   public static string HierarchyToString(this VisualElement element, int indent = 0)
   {
 #if DEBUG

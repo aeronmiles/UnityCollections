@@ -5,7 +5,6 @@ using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Linq;
 using AVFoundation;
-using UnityEngine.AI;
 
 
 namespace NativeCameraCapture
@@ -65,12 +64,14 @@ namespace NativeCameraCapture
       if (_debugEditorPhoto == null)
       {
         _debugEditorPhoto = new Texture2D(1, 1);
+        _debugEditorPhoto.name = "CameraCapture::Start::_debugEditorPhoto";
         _debugEditorPhoto.SetPixel(0, 0, Color.red);
       }
       if (!_debugEditorPhoto.isReadable)
       {
         // Ensure correct format for editor photo
         var temp = new Texture2D(_debugEditorPhoto.width, _debugEditorPhoto.height, TextureFormat.RGBA32, false);
+        temp.name = "CameraCapture::Start::temp";
         temp.SetPixels32(_debugEditorPhoto.GetPixels32());
         _debugEditorPhoto = temp;
       }
@@ -709,6 +710,7 @@ namespace NativeCameraCapture
 
           // Create the new texture before destroying the old one
           newTexture = new Texture2D(1, 1, TextureFormat.RGBA32, false);
+          newTexture.name = "CameraCapture::UpdatePhotoTexture::newTexture";
 
 #if UNITY_EDITOR
           newTexture.LoadRawTextureData(photoBytes);
@@ -791,6 +793,7 @@ namespace NativeCameraCapture
           if (_previewTexture == null || _previewTexture.width != width || _previewTexture.height != height)
           {
             newTexture = new Texture2D(width, height, TextureFormat.BGRA32, false);
+            newTexture.name = "CameraCapture::UpdatePreviewTexture::newTexture";
             var oldTexture = _previewTexture;
             _previewTexture = newTexture;
 
@@ -903,12 +906,12 @@ namespace NativeCameraCapture
         var imageOrientation = (UIImage.Orientation)int.Parse(parts[6], CultureInfo.InvariantCulture);
         bool isMirrored = bool.Parse(parts[7]);
 
-        Debug.Log($"CameraCapture :: ParsePreviewFrameData :: " +
-                  $"Base addr : 0x{baseAddress.ToString("X")}, " +
-                  $"Width: {width}, Height: {height}, " +
-                  $"BytesPerRow: {bytesPerRow}, DataLength: {dataLength}, " +
-                  $"VideoOrientation: {videoOrientation}, ImageOrientation: {imageOrientation}, " +
-                  $"IsMirrored: {isMirrored}");
+        // Debug.Log($"CameraCapture :: ParsePreviewFrameData :: " +
+        //           $"Base addr : 0x{baseAddress.ToString("X")}, " +
+        //           $"Width: {width}, Height: {height}, " +
+        //           $"BytesPerRow: {bytesPerRow}, DataLength: {dataLength}, " +
+        //           $"VideoOrientation: {videoOrientation}, ImageOrientation: {imageOrientation}, " +
+        //           $"IsMirrored: {isMirrored}");
         return (baseAddress, width, height, bytesPerRow, dataLength, videoOrientation, imageOrientation, isMirrored);
       }
       catch (Exception e)

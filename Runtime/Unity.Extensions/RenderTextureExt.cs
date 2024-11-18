@@ -18,6 +18,7 @@ public static class RenderTextureExt
     if (blitMats != null && blitMats.Length > 0)
     {
       RenderTexture rtTemp = rtOut.GetTemporaryCopy();
+      rtTemp.name = "RenderTextureExt::BlitMaterial::rtTemp";
       RenderTexture rtSource = rtOut;
       RenderTexture rtDestination = rtTemp;
 
@@ -129,6 +130,7 @@ public static class RenderTextureExt
     {
       filterMode = rt.filterMode
     };
+    texture2D.name = "RenderTextureExt::AsTexture2D::texture2D";
     return texture2D;
   }
 
@@ -140,6 +142,7 @@ public static class RenderTextureExt
     {
       filterMode = rt.filterMode
     };
+    texture2D.name = "RenderTextureExt::ToTexture2D::texture2D";
     return texture2D;
   }
 
@@ -158,6 +161,7 @@ public static class RenderTextureExt
     }
 
     RenderTexture rt = RenderTexture.GetTemporary(width, height, 0);
+    rt.name = "RenderTextureExt::RotateAndScale::rt";
     rt.useMipMap = false;
 
     // Create a material for the rotation and scaling
@@ -180,6 +184,7 @@ public static class RenderTextureExt
 
     // Convert back to Texture2D
     Texture2D result = rt.ToTexture2D(false);
+    result.name = "RenderTextureExt::RotateAndScale::result";
 
     // Clean up
     RenderTexture.ReleaseTemporary(rt);

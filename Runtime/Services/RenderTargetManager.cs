@@ -147,6 +147,7 @@ public class RenderTargetManager : MonoSingletonScene<RenderTargetManager>
         var renderHeight = Display.displays[0].renderingHeight;
         renderTexture = new RenderTexture(renderWidth, renderHeight, 24);
       }
+      renderTexture.name = "RenderTargetBase::" + id;
       RenderToTarget = true;
     }
 

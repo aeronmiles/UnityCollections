@@ -6,7 +6,7 @@ using UnityEngine.SceneManagement;
 // @TODO: Implement as service
 public class SceneLoader : MonoSingleton<SceneLoader>
 {
-  [SerializeField] private GameObject m_loadingScreen;
+  [SerializeField] private GameObject _loadingScreen;
   public static event Action<Scene, LoadSceneMode> OnSceneLoaded;
   public static event Action<Scene> OnSceneUnloaded;
 
@@ -14,7 +14,7 @@ public class SceneLoader : MonoSingleton<SceneLoader>
   {
     SceneManager.sceneLoaded += OnSceneLoadedEvent;
     SceneManager.sceneUnloaded += OnSceneUnloadedEvent;
-    m_loadingScreen.SetActive(false);
+    _loadingScreen.SetActive(false);
   }
 
   private new void OnDestroy()
@@ -23,15 +23,9 @@ public class SceneLoader : MonoSingleton<SceneLoader>
     SceneManager.sceneUnloaded -= OnSceneUnloadedEvent;
   }
 
-  private void OnSceneLoadedEvent(Scene scene, LoadSceneMode mode)
-  {
-    OnSceneLoaded?.Invoke(scene, mode);
-  }
+  private void OnSceneLoadedEvent(Scene scene, LoadSceneMode mode) => OnSceneLoaded?.Invoke(scene, mode);
 
-  private void OnSceneUnloadedEvent(Scene scene)
-  {
-    OnSceneUnloaded?.Invoke(scene);
-  }
+  private void OnSceneUnloadedEvent(Scene scene) => OnSceneUnloaded?.Invoke(scene);
 
   public static void Load(string sceneName, bool showLoading, Action<Scene, LoadSceneMode> onSceneLoaded = null)
   {
@@ -69,12 +63,12 @@ public class SceneLoader : MonoSingleton<SceneLoader>
 
   private static IEnumerator BeginLoadScene(string sceneName, bool showLoading, Action<Scene, LoadSceneMode> onSceneLoaded = null)
   {
-    I.m_loadingScreen.SetActive(showLoading);
+    I._loadingScreen.SetActive(showLoading);
     if (showLoading)
       yield return new WaitForSeconds(0.25f);
 
     yield return SceneManager.LoadSceneAsync(sceneName, LoadSceneMode.Single);
-    I.m_loadingScreen.SetActive(false);
+    I._loadingScreen.SetActive(false);
     onSceneLoaded?.Invoke(SceneManager.GetSceneByName(sceneName), LoadSceneMode.Single);
   }
 }

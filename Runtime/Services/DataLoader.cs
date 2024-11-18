@@ -105,7 +105,7 @@ public static class DataLoader
       try
       {
         CreateBackup(DataFilePath, BackupFilePath);
-        _ = DataUtil.Load(ref _Data, DataFilePath);
+        _ = IOUtil.Load(ref _Data, DataFilePath);
         _Data ??= new Data();
 
         // Update data version
@@ -238,7 +238,7 @@ public static class DataLoader
       try
       {
         CreateBackup(DataFilePath, BackupFilePath);
-        _ = DataUtil.Save(_Data, DataFilePath);
+        _ = IOUtil.Save(_Data, DataFilePath);
       }
       catch (Exception ex)
       {

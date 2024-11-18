@@ -70,7 +70,7 @@ public class Analytics : MonoSingleton<Analytics>
     var json = JsonConvert.SerializeObject(_data, Formatting.Indented);
     var path = GetFilePath();
 
-    var saveTask = DataUtil.SaveStringAsync(json, path);
+    var saveTask = IOUtil.SaveStringAsync(json, path);
 
     ServiceManager.I.logger.Log("Analytics", "Analytics -> Save() :: Waiting for save task to complete", this);
 

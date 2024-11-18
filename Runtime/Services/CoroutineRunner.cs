@@ -7,10 +7,7 @@ using UnityEngine;
 // @TODO: Implement as service
 public class CoroutineRunner : MonoSingleton<CoroutineRunner>
 {
-  public static void Run(IEnumerator coroutine)
-  {
-    _ = I.StartCoroutine(coroutine);
-  }
+  public static void Run(IEnumerator coroutine) => _ = I.StartCoroutine(coroutine);
 
   public static IEnumerator RunAfter(IEnumerator coroutine, float delay)
   {
@@ -36,15 +33,9 @@ public class CoroutineRunner : MonoSingleton<CoroutineRunner>
     }
   }
 
-  public static void RunSequential(IEnumerator coroutine, Action onSuccess = null)
-  {
-    _ = I.StartCoroutine(RunRoutinesSequential(new IEnumerator[] { coroutine }, onSuccess));
-  }
+  public static void RunSequential(IEnumerator coroutine, Action onSuccess = null) => _ = I.StartCoroutine(RunRoutinesSequential(new IEnumerator[] { coroutine }, onSuccess));
 
-  public static void RunSequential(IEnumerable<IEnumerator> coroutines, Action onSuccess = null)
-  {
-    _ = I.StartCoroutine(RunRoutinesSequential(coroutines, onSuccess));
-  }
+  public static void RunSequential(IEnumerable<IEnumerator> coroutines, Action onSuccess = null) => _ = I.StartCoroutine(RunRoutinesSequential(coroutines, onSuccess));
 
   private static IEnumerator RunRoutinesSequential(IEnumerable<IEnumerator> coroutines, Action onSuccess = null)
   {
@@ -56,10 +47,7 @@ public class CoroutineRunner : MonoSingleton<CoroutineRunner>
     onSuccess?.Invoke();
   }
 
-  public static void RunSequential(IEnumerable<IEnumerator> coroutines)
-  {
-    _ = I.StartCoroutine(RunRoutinesSequential(coroutines));
-  }
+  public static void RunSequential(IEnumerable<IEnumerator> coroutines) => _ = I.StartCoroutine(RunRoutinesSequential(coroutines));
 }
 
 public class CoroutineQueue

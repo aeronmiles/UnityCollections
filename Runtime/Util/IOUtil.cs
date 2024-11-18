@@ -5,7 +5,7 @@ using UnityEngine;
 using Newtonsoft.Json;
 using System.Threading.Tasks;
 
-public static class DataUtil
+public static class IOUtil
 {
   public static bool Load<T>(ref T dataOut, string path) where T : class
   {
@@ -56,6 +56,7 @@ public static class DataUtil
     {
       byte[] fileData = File.ReadAllBytes(path);
       Texture2D texture = new Texture2D(2, 2);
+      texture.name = "IOUtil::LoadTexture::texture";
       _ = texture.LoadImage(fileData); //..this will auto-resize the texture dimensions.
       tex = texture;
       return true;
@@ -220,13 +221,7 @@ public interface IDataSerializer
 
 public class DataSerializer : IDataSerializer
 {
-  public bool Save<T>(T data, string filePath) where T : class, new()
-  {
-    return DataUtil.Save(data, filePath);
-  }
+  public bool Save<T>(T data, string filePath) where T : class, new() => IOUtil.Save(data, filePath);
 
-  public bool Load<T>(ref T data, string filePath) where T : class, new()
-  {
-    return DataUtil.Load(ref data, filePath);
-  }
+  public bool Load<T>(ref T data, string filePath) where T : class, new() => IOUtil.Load(ref data, filePath);
 }

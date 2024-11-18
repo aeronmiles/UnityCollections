@@ -1,3 +1,4 @@
+using System.Threading.Tasks;
 using UnityEngine;
 
 /// <summary>
@@ -33,7 +34,9 @@ public class Texture2DPool : IFactoryPool<Texture2DPool, Texture2D>
 
   public Texture2D Create()
   {
-    return new Texture2D(this._width, this._height, this._format, this._mipChain, this._linear);
+    var tex = new Texture2D(this._width, this._height, this._format, this._mipChain, this._linear);
+    tex.name = $"Texture2DPool::Create::tex";
+    return tex;
   }
 
   public Texture2D Get() => _Pools.Get(this);
