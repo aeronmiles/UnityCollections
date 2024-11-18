@@ -204,8 +204,7 @@ namespace NativeCameraCapture
 #if UNITY_EDITOR
       isCameraActive = false;
       return;
-#endif
-
+#else
       try
       {
         if (isCameraActive && !isPreviewPaused)
@@ -218,6 +217,7 @@ namespace NativeCameraCapture
       {
         Debug.LogError($"CameraCapture :: Error pausing preview: {e.Message}");
       }
+#endif
     }
 
     public void ResumePreview()
@@ -230,8 +230,7 @@ namespace NativeCameraCapture
 #if UNITY_EDITOR
       isCameraActive = true;
       return;
-#endif
-
+#else
       try
       {
         // LogMemoryUsage("Before resuming preview");
@@ -251,6 +250,7 @@ namespace NativeCameraCapture
         Debug.LogError($"CameraCapture :: Error resuming preview: {e.Message}");
         // CleanupResources(force: true);
       }
+#endif
     }
 
     public void StopCamera()
@@ -287,8 +287,7 @@ namespace NativeCameraCapture
 #if UNITY_EDITOR
       UpdatePhotoTexture(_debugEditorPhoto.GetRawTextureData(), AVCaptureVideoOrientation.Portrait, UIImage.Orientation.Up, false);
       return;
-#endif
-
+#else
       if (Interlocked.CompareExchange(ref _isCapturing, 1, 0) == 0)
       {
         try
@@ -307,6 +306,7 @@ namespace NativeCameraCapture
       {
         Debug.LogWarning("CameraCapture :: TakePhoto :: Already capturing");
       }
+#endif
     }
 
     public void SwitchCamera()

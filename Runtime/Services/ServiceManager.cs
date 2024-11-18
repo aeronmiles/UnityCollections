@@ -175,8 +175,8 @@ public class ServiceContainer : IServiceContainer
       catch (Exception ex) when (remainingRetries > 1)
       {
         remainingRetries--;
-        _logger.LogWarning("ServiceContainer", $"Service initialization attempt failed. Retrying... ({remainingRetries} attempts remaining)", null);
-        await Task.Delay(1000); // Wait before retrying
+        _logger.LogError("ServiceContainer", $"Service initialization attempt failed: {ex.Message}. Retrying... ({remainingRetries} attempts remaining)", ex, null);
+        await Task.Delay(1000);
       }
     }
   }

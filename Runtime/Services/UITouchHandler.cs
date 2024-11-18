@@ -70,7 +70,8 @@ public class UITouchHandler : MonoSingleton<UITouchHandler>
     }
   }
 
-  private int _totalHeight = 0;
+
+  protected int totalHeight = 0;
   // @TODO: Validate this base implementation
   public virtual Vector2 MapTouchToDisplay(Vector2 touchPosition)
   {
@@ -82,12 +83,12 @@ public class UITouchHandler : MonoSingleton<UITouchHandler>
 
     if (Display.displays.Length == 2)
     {
-      if (useDisplayHeight && _totalHeight == 0)
+      if (useDisplayHeight && totalHeight == 0)
       {
-        _totalHeight = Display.displays[0].renderingHeight + Display.displays[1].renderingHeight;
+        totalHeight = Display.displays[0].renderingHeight + Display.displays[1].renderingHeight;
       }
 #if UNITY_EDITOR
-      _totalHeight = Screen.height;
+      totalHeight = Screen.height;
 #endif
     }
     else if (Display.displays.Length > 2)
@@ -95,10 +96,10 @@ public class UITouchHandler : MonoSingleton<UITouchHandler>
       Debug.LogWarning("UITouchHandler :: More than 2 displays detected, touch mapping may not implemented");
     }
 
-    var touchPos = new Vector2(touchPosition.x, _totalHeight > 0 ? _totalHeight - touchPosition.y : touchPosition.y);
+    var touchPos = new Vector2(touchPosition.x, totalHeight > 0 ? totalHeight - touchPosition.y : touchPosition.y);
 
 #if DEBUG
-    Debug.Log($"UITouchHandler :: Screen w:{Screen.width} h:{Screen.height}, total height: {_totalHeight} touchPos: {touchPos}");
+    Debug.Log($"UITouchHandler :: Screen w:{Screen.width} h:{Screen.height}, total height: {totalHeight} touchPos: {touchPos}");
     for (int i = 0; i < Display.displays.Length; i++)
     {
       var di = Display.displays[i];
