@@ -34,8 +34,10 @@ public class Texture2DPool : IFactoryPool<Texture2DPool, Texture2D>
 
   public Texture2D Create()
   {
-    var tex = new Texture2D(this._width, this._height, this._format, this._mipChain, this._linear);
-    tex.name = $"Texture2DPool::Create::tex";
+    var tex = new Texture2D(this._width, this._height, this._format, this._mipChain, this._linear)
+    {
+      name = $"Texture2DPool::Create::tex"
+    };
     return tex;
   }
 

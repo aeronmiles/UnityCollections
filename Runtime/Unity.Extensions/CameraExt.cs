@@ -86,7 +86,6 @@ public static class CameraExt
     var cachedTargetTexture = camera.targetTexture;
 
     var rt = RenderTexture.GetTemporary(width, height, 24, RenderTextureFormat.ARGBHalf);
-    rt.name = "CameraExt::BlitCroppedToScreenBounds::rt";
     rt.filterMode = filterMode;
 
     // Render to texture
@@ -97,16 +96,15 @@ public static class CameraExt
     Debug.LogWarning("BlitCroppedToScreenBounds: Memory allocation detected. Consider using a pooled texture.");
     var tex = new Texture2D((int)bounds.width, (int)bounds.height, TextureFormat.RGBAHalf, false)
     {
-      filterMode = filterMode
+      filterMode = filterMode,
+      name = "CameraExt::BlitCroppedToScreenBounds::tex"
     };
-    tex.name = "CameraExt::BlitCroppedToScreenBounds::tex";
 
     RenderTexture.active = rt;
     tex.ReadPixels(bounds, 0, 0);
     tex.Apply(mipChains);
 
     var rt2 = RenderTexture.GetTemporary(size, size, 24, RenderTextureFormat.ARGBHalf);
-    rt.name = "CameraExt::BlitCroppedToScreenBounds::rt2";
     rt2.filterMode = filterMode;
 
     if (blitMat != null)
@@ -206,7 +204,6 @@ public static class CameraExt
 
     // Render to texture
     var rtScreen = RenderTexture.GetTemporary(width, height, 0, rtOut.format);
-    rtScreen.name = "CameraExt::BlitCroppedToScreenBounds::rtScreen";
     camera.targetTexture = rtScreen;
     camera.Render();
 
@@ -283,7 +280,6 @@ public static class CameraExt
     var cachedTargetTexture = camera.targetTexture;
 
     var renderTexture = tex.GetTemporaryRT();
-    renderTexture.name = "CameraExt::BlitToTex::renderTexture";
     camera.targetTexture = renderTexture;
 
     camera.Render();

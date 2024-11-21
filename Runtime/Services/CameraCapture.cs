@@ -63,15 +63,19 @@ namespace NativeCameraCapture
       }
       if (_debugEditorPhoto == null)
       {
-        _debugEditorPhoto = new Texture2D(1, 1);
-        _debugEditorPhoto.name = "CameraCapture::Start::_debugEditorPhoto";
+        _debugEditorPhoto = new Texture2D(1, 1)
+        {
+          name = "CameraCapture::Start::_debugEditorPhoto"
+        };
         _debugEditorPhoto.SetPixel(0, 0, Color.red);
       }
       if (!_debugEditorPhoto.isReadable)
       {
         // Ensure correct format for editor photo
-        var temp = new Texture2D(_debugEditorPhoto.width, _debugEditorPhoto.height, TextureFormat.RGBA32, false);
-        temp.name = "CameraCapture::Start::temp";
+        var temp = new Texture2D(_debugEditorPhoto.width, _debugEditorPhoto.height, TextureFormat.RGBA32, false)
+        {
+          name = "CameraCapture::Start::temp"
+        };
         temp.SetPixels32(_debugEditorPhoto.GetPixels32());
         _debugEditorPhoto = temp;
       }
@@ -709,9 +713,12 @@ namespace NativeCameraCapture
           // LogMemoryUsage("Before creating new photo texture");
 
           // Create the new texture before destroying the old one
-          newTexture = new Texture2D(1, 1, TextureFormat.RGBA32, false);
-          newTexture.name = "CameraCapture::UpdatePhotoTexture::newTexture";
+          newTexture = new Texture2D(1, 1, TextureFormat.RGBA32, false)
+          {
+            name = "CameraCapture::UpdatePhotoTexture::newTexture"
+          };
 
+          // @TODO: Fix
 #if UNITY_EDITOR
           newTexture.LoadRawTextureData(photoBytes);
 #else
@@ -723,24 +730,18 @@ namespace NativeCameraCapture
 #endif
 
           // If we successfully created and loaded the new texture, destroy the old one
-          var oldTexture = _photoTexture;
-          _photoTexture = newTexture;
-
-          if (oldTexture != null)
+          if (_photoTexture != null)
           {
-            var textureToDestroy = oldTexture;
-            UnityMainThreadDispatcher.I.Enqueue(() =>
+            try
             {
-              try
-              {
-                Destroy(textureToDestroy);
-              }
-              catch (Exception e)
-              {
-                Debug.LogError($"CameraCapture :: Error destroying old photo texture: {e.Message}");
-              }
-            });
+              Destroy(_photoTexture);
+            }
+            catch (Exception e)
+            {
+              Debug.LogError($"CameraCapture :: Error destroying old photo texture: {e.Message}");
+            }
           }
+          _photoTexture = newTexture;
 
           Debug.Log($"CameraCapture :: Loaded photo texture - Width: {_photoTexture.width}, Height: {_photoTexture.height}");
           // LogMemoryUsage("After creating new photo texture");
@@ -792,8 +793,10 @@ namespace NativeCameraCapture
 
           if (_previewTexture == null || _previewTexture.width != width || _previewTexture.height != height)
           {
-            newTexture = new Texture2D(width, height, TextureFormat.BGRA32, false);
-            newTexture.name = "CameraCapture::UpdatePreviewTexture::newTexture";
+            newTexture = new Texture2D(width, height, TextureFormat.BGRA32, false)
+            {
+              name = "CameraCapture::UpdatePreviewTexture::newTexture"
+            };
             var oldTexture = _previewTexture;
             _previewTexture = newTexture;
 

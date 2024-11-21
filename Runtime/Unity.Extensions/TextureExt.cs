@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Unity.Burst;
 using Unity.Collections;
@@ -10,6 +11,7 @@ using UnityEngine;
 
 public static class TextureExt
 {
+  [MethodImpl(MethodImplOptions.AggressiveInlining)]
   public static RenderTexture GetTemporaryRT(this Texture texture, int depth = 0)
   {
     var rt = RenderTexture.GetTemporary(texture.width, texture.height, depth, texture.graphicsFormat);
@@ -17,6 +19,7 @@ public static class TextureExt
     return rt;
   }
 
+  [MethodImpl(MethodImplOptions.AggressiveInlining)]
   public static Texture3D ToTexture3D(this RenderTexture rt, TextureFormat format, bool mipChains = false)
   {
     if (rt.volumeDepth == 0)
@@ -34,6 +37,7 @@ public static class TextureExt
     return tex;
   }
 
+  [MethodImpl(MethodImplOptions.AggressiveInlining)]
   public static Texture2D ToTexture2D(this Texture texture, TextureFormat format, bool linear = false, bool mipChains = false)
   {
     // return Texture2D.CreateExternalTexture(
