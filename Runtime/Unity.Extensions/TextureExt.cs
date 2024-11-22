@@ -605,8 +605,11 @@ public static class TextureExt
       return _BlitCroppedMaterial;
     }
   }
-  public static void BlitToTexCentreFitted(this Texture2D source, Texture2D destination, bool fitInside = true)
+
+  public static void BlitToTexCentreFitted(this Texture2D source, Texture2D destination, Material mat = null, bool fitInside = true)
   {
+    var currentRT = RenderTexture.active;
+
     // Calculate the scale factor and offsets
     float srcAspect = (float)source.width / source.height;
     float dstAspect = (float)destination.width / destination.height;
@@ -629,30 +632,45 @@ public static class TextureExt
     // Create a temporary RenderTexture
     RenderTexture tempRT = destination.GetTemporaryRT();
     tempRT.name = "TextureExt::BlitToTexCentreFitted::tempRT";
+    RenderTexture tempRTBlitMat = destination.GetTemporaryRT();
+    tempRTBlitMat.name = "TextureExt::BlitToTexCentreFitted::tempRTBlitMat";
 
     // Set the active RenderTexture
     RenderTexture.active = tempRT;
-
     // Clear the RenderTexture
     GL.Clear(true, true, Color.clear);
 
     // Set up the material and pass the scale and offset
+    var mainTex = BlitCroppedMaterial.GetTexture("_MainTex");
+    var cropRect = BlitCroppedMaterial.GetVector("_CropRect");
     BlitCroppedMaterial.SetTexture("_MainTex", source);
     BlitCroppedMaterial.SetVector("_CropRect", new Vector4(offsetX, offsetY, scaleWidth, scaleHeight));
 
     // Blit the texture
     Graphics.Blit(source, tempRT, BlitCroppedMaterial);
+    // if (mat != null)
+    // {
+    //   Graphics.Blit(tempRT, tempRTBlitMat, mat);
+    //   RenderTexture.active = tempRTBlitMat;
+    // }
+    // else
+    // {
+    //   RenderTexture.active = tempRT;
+    // }
+    // Graphics.Blit(tempRT, tempRTBlitMat, mat);
 
     // Copy the result to the destination texture
-    RenderTexture.active = tempRT;
     destination.ReadPixels(new Rect(0, 0, tempRT.width, tempRT.height), 0, 0);
     destination.Apply();
 
     // Release the temporary RenderTexture
     RenderTexture.ReleaseTemporary(tempRT);
+    RenderTexture.ReleaseTemporary(tempRTBlitMat);
 
-    // Reset the active RenderTexture
-    RenderTexture.active = null;
+    // Cleanup
+    RenderTexture.active = currentRT;
+    BlitCroppedMaterial.SetTexture("_MainTex", mainTex);
+    BlitCroppedMaterial.SetVector("_CropRect", cropRect);
   }
 
   // public static void BlitToTexCentreFitted(this Texture sourceTex, Texture2D texOut, Material mat = null, RenderTextureFormat format = RenderTextureFormat.ARGBHalf, bool mipChains = false)
@@ -726,6 +744,31 @@ public static class TextureExt
     RenderTexture.active = cachedRT;
     RenderTexture.ReleaseTemporary(rt);
   }
+
+  /// <summary>
+  /// blit sourceTex to texOut
+  /// </summary>
+  /// <param name="sourceTex"></param>
+  /// <param name="texOut"></param>
+  public static void BlitToRT(this Texture sourceTex, RenderTexture rtOut, Material mat = null, bool mipChains = false)
+  {
+    rtOut.name = "TextureExt::BlitToRT::rtOut";
+    var cachedRT = RenderTexture.active;
+
+    RenderTexture.active = rtOut;
+    if (mat != null)
+    {
+      Graphics.Blit(sourceTex, rtOut, mat);
+    }
+    else
+    {
+      Graphics.Blit(sourceTex, rtOut);
+    }
+
+    // Cleanup
+    RenderTexture.active = cachedRT;
+  }
+
 
   public static void BlitToTex(this RenderTexture sourceTex, Texture2D texOut, Material[] mats, bool mipChains = false)
   {

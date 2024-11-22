@@ -14,6 +14,9 @@ namespace NativeCameraCapture
 
     [Header("Debug")]
     [SerializeField] private Texture2D _debugEditorPhoto;
+    [SerializeField] private AVCaptureVideoOrientation _debugVideoOrientation = AVCaptureVideoOrientation.Portrait;
+    [SerializeField] private UIImage.Orientation _debugImageOrientation = UIImage.Orientation.Up;
+    [SerializeField] private bool _debugIsMirrored = false;
 
     private ICameraService _cameraService;
     private ICameraService cameraService
@@ -61,24 +64,24 @@ namespace NativeCameraCapture
         cameraService?.InitializeCamera(gameObject.name);
         // LogMemoryUsage("After camera initialization");
       }
-      if (_debugEditorPhoto == null)
-      {
-        _debugEditorPhoto = new Texture2D(1, 1)
-        {
-          name = "CameraCapture::Start::_debugEditorPhoto"
-        };
-        _debugEditorPhoto.SetPixel(0, 0, Color.red);
-      }
-      if (!_debugEditorPhoto.isReadable)
-      {
-        // Ensure correct format for editor photo
-        var temp = new Texture2D(_debugEditorPhoto.width, _debugEditorPhoto.height, TextureFormat.RGBA32, false)
-        {
-          name = "CameraCapture::Start::temp"
-        };
-        temp.SetPixels32(_debugEditorPhoto.GetPixels32());
-        _debugEditorPhoto = temp;
-      }
+      // if (_debugEditorPhoto == null)
+      // {
+      //   _debugEditorPhoto = new Texture2D(1, 1)
+      //   {
+      //     name = "CameraCapture::Start::_debugEditorPhoto"
+      //   };
+      //   _debugEditorPhoto.SetPixel(0, 0, Color.red);
+      // }
+      // if (!_debugEditorPhoto.isReadable)
+      // {
+      //   // Ensure correct format for editor photo
+      //   var temp = new Texture2D(_debugEditorPhoto.width, _debugEditorPhoto.height, TextureFormat.RGBA32, false)
+      //   {
+      //     name = "CameraCapture::Start::temp"
+      //   };
+      //   temp.SetPixels32(_debugEditorPhoto.GetPixels32());
+      //   _debugEditorPhoto = temp;
+      // }
     }
 
     private void OnEnable()
@@ -103,8 +106,10 @@ namespace NativeCameraCapture
       if (isCameraActive && !isPreviewPaused)
       {
         // Simulate preview frame update
-        var frameData = _debugEditorPhoto.GetRawTextureData();
-        UpdatePreviewTexture(frameData, _debugEditorPhoto.width, _debugEditorPhoto.height, AVCaptureVideoOrientation.Portrait, UIImage.Orientation.Up, false);
+        // var frameData = _debugEditorPhoto.GetRawTextureData();
+        // UpdatePreviewTexture(frameData, _debugEditorPhoto.width, _debugEditorPhoto.height, AVCaptureVideoOrientation.Portrait, UIImage.Orientation.Up, false);
+        var (rotation, scale) = CalculateRotationAndScale(_debugVideoOrientation, _debugImageOrientation, _debugIsMirrored);
+        OnPreviewTextureUpdated?.Invoke(_debugEditorPhoto, rotation, scale, _debugIsMirrored);
       }
     }
 #endif
@@ -289,7 +294,9 @@ namespace NativeCameraCapture
       }
 
 #if UNITY_EDITOR
-      UpdatePhotoTexture(_debugEditorPhoto.GetRawTextureData(), AVCaptureVideoOrientation.Portrait, UIImage.Orientation.Up, false);
+      var (rotation, scale) = CalculateRotationAndScale(AVCaptureVideoOrientation.Portrait, UIImage.Orientation.Up, false);
+      OnPhotoCaptured?.Invoke(_debugEditorPhoto, rotation, scale, false);
+      // UpdatePhotoTexture(_debugEditorPhoto.GetRawTextureData(), AVCaptureVideoOrientation.Portrait, UIImage.Orientation.Up, false);
       return;
 #else
       if (Interlocked.CompareExchange(ref _isCapturing, 1, 0) == 0)

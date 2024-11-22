@@ -99,6 +99,7 @@ public class RenderTargetManager : MonoSingletonScene<RenderTargetManager>
 
     [Header("Debug")]
     public bool RenderToTarget;
+    public bool LogRendered = false;
 
     private List<float> _lastValues;
     protected virtual void PreRender()
@@ -167,7 +168,10 @@ public class RenderTargetManager : MonoSingletonScene<RenderTargetManager>
       var result = RenderToTexture(out rtOut);
       PostRender();
 #if UNITY_EDITOR
-      Debug.Log($"RenderTargetBase :: {id} rendered: {result}");
+      if (LogRendered)
+      {
+        Debug.Log($"RenderTargetBase :: {id} rendered: {result}");
+      }
 #endif
       _lastFrame = Time.frameCount;
       return result;
@@ -232,7 +236,6 @@ public class RenderTargetManager : MonoSingletonScene<RenderTargetManager>
       Vector3 _scale = sourceRenderer.transform.localScale;
       sourceRenderer.transform.localScale = sourceRenderer.transform.localScale.Multiply(sourceRendererScale);
 
-      // @TODO: Add support for multiple blit materials
       var mat = sourceRenderer.sharedMaterial;
       if (blitMaterial != null)
       {

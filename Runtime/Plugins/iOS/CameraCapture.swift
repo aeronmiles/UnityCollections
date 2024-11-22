@@ -157,7 +157,7 @@ class CameraCapture: NSObject, AVCapturePhotoCaptureDelegate,
 
       let settings = AVCapturePhotoSettings()
       settings.isAutoStillImageStabilizationEnabled = true
-      settings.flashMode = .on  // Set as needed
+      settings.flashMode = .off  // Set as needed
 
       self.photoOutput?.capturePhoto(with: settings, delegate: self)
     }
