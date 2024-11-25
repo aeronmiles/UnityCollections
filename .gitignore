@@ -87,3 +87,4 @@ Assets/Plugins/*.dylib
 .Trashes
 
 diff.patch
+diff.patch.meta
