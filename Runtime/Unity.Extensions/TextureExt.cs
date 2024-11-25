@@ -286,8 +286,8 @@ public static class TextureExt
     texOut.Apply();
 
     // Cleanup
-    RenderTexture.ReleaseTemporary(rt);
     RenderTexture.active = cachedRT;
+    RenderTexture.ReleaseTemporary(rt);
   }
 
   [BurstCompile]
@@ -496,8 +496,8 @@ public static class TextureExt
     tex.Apply();
 
     // Cleanup
-    RenderTexture.ReleaseTemporary(rt);
     RenderTexture.active = cachedRT;
+    RenderTexture.ReleaseTemporary(rt);
 
     return true;
   }
@@ -513,6 +513,7 @@ public static class TextureExt
     var rt = sourceTex.GetTemporaryRT();
     rt.name = "TextureExt::BlitToTexCropped::rt";
 
+    var cachedRT = RenderTexture.active;
     RenderTexture.active = rt;
     if (mat != null)
     {
@@ -529,9 +530,9 @@ public static class TextureExt
     int y = (sourceTex.height >> 1) - (h >> 1);
     texOut.ReadPixels(new Rect(x, y, w, h), 0, 0, false);
     texOut.Apply(mipChains);
-    RenderTexture.active = null;
 
     // Cleanup
+    RenderTexture.active = cachedRT;
     RenderTexture.ReleaseTemporary(rt);
   }
 
@@ -550,6 +551,8 @@ public static class TextureExt
 
     var rt = sourceTex.GetTemporaryRT();
     rt.name = "TextureExt::BlitToTexCentre::rt";
+    var cachedRT = RenderTexture.active;
+
     RenderTexture.active = rt;
     GL.Clear(true, true, Color.black);
 
@@ -580,7 +583,7 @@ public static class TextureExt
     texOut.Apply(mipChains);
 
     // Clean up
-    RenderTexture.active = null;
+    RenderTexture.active = cachedRT;
     RenderTexture.ReleaseTemporary(rt);
     RenderTexture.ReleaseTemporary(texRT);
   }
@@ -648,27 +651,22 @@ public static class TextureExt
 
     // Blit the texture
     Graphics.Blit(source, tempRT, BlitCroppedMaterial);
-    // if (mat != null)
-    // {
-    //   Graphics.Blit(tempRT, tempRTBlitMat, mat);
-    //   RenderTexture.active = tempRTBlitMat;
-    // }
-    // else
-    // {
-    //   RenderTexture.active = tempRT;
-    // }
-    // Graphics.Blit(tempRT, tempRTBlitMat, mat);
+    if (mat != null)
+    {
+      Graphics.Blit(tempRT, tempRTBlitMat, mat);
+      RenderTexture.active = tempRTBlitMat;
+    }
 
     // Copy the result to the destination texture
     destination.ReadPixels(new Rect(0, 0, tempRT.width, tempRT.height), 0, 0);
     destination.Apply();
 
     // Release the temporary RenderTexture
+    RenderTexture.active = currentRT;
     RenderTexture.ReleaseTemporary(tempRT);
     RenderTexture.ReleaseTemporary(tempRTBlitMat);
 
     // Cleanup
-    RenderTexture.active = currentRT;
     BlitCroppedMaterial.SetTexture("_MainTex", mainTex);
     BlitCroppedMaterial.SetVector("_CropRect", cropRect);
   }
@@ -773,7 +771,7 @@ public static class TextureExt
   public static void BlitToTex(this RenderTexture sourceTex, Texture2D texOut, Material[] mats, bool mipChains = false)
   {
     sourceTex.BlitMaterials(mats);
-    RenderTexture.active = sourceTex;
+    // RenderTexture.active = sourceTex;
     Graphics.CopyTexture(sourceTex, 0, 0, texOut, 0, 0);
     texOut.Apply(mipChains);
   }

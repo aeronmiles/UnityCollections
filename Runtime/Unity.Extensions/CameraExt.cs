@@ -84,6 +84,7 @@ public static class CameraExt
     Debug.Log(bounds);
 
     var cachedTargetTexture = camera.targetTexture;
+    var cachedRT = RenderTexture.active;
 
     var rt = RenderTexture.GetTemporary(width, height, 24, RenderTextureFormat.ARGBHalf);
     rt.filterMode = filterMode;
@@ -99,6 +100,7 @@ public static class CameraExt
       filterMode = filterMode,
       name = "CameraExt::BlitCroppedToScreenBounds::tex"
     };
+
 
     RenderTexture.active = rt;
     tex.ReadPixels(bounds, 0, 0);
@@ -119,6 +121,7 @@ public static class CameraExt
     rt2.BlitToTex(texOut);
 
     // Cleanup
+    RenderTexture.active = cachedRT;
     camera.targetTexture = cachedTargetTexture;
     RenderTexture.ReleaseTemporary(rt);
     RenderTexture.ReleaseTemporary(rt2);
@@ -278,19 +281,20 @@ public static class CameraExt
     }
 
     var cachedTargetTexture = camera.targetTexture;
+    var cachedRT = RenderTexture.active;
 
     var renderTexture = tex.GetTemporaryRT();
     camera.targetTexture = renderTexture;
 
     camera.Render();
-    RenderTexture.active = camera.targetTexture;
+
+    RenderTexture.active = renderTexture;
     tex.ReadPixels(new Rect(0, 0, tex.width, tex.height), 0, 0);
     tex.Apply(tex.mipmapCount > 1);
 
-    camera.targetTexture = cachedTargetTexture;
-    RenderTexture.active = null;
-
     // Cleanup
+    camera.targetTexture = cachedTargetTexture;
+    RenderTexture.active = cachedRT;
     RenderTexture.ReleaseTemporary(renderTexture);
 
     return true;
