@@ -16,7 +16,7 @@ namespace NativeCameraCapture
     [SerializeField] private Texture2D _debugEditorPhoto;
     [SerializeField] private AVCaptureVideoOrientation _debugVideoOrientation = AVCaptureVideoOrientation.Portrait;
     [SerializeField] private UIImage.Orientation _debugImageOrientation = UIImage.Orientation.Up;
-    [SerializeField] private bool _debugIsMirrored = false;
+    [SerializeField] private bool _debugIsMirrored = true;
 
     private ICameraService _cameraService;
     private ICameraService cameraService
@@ -338,7 +338,14 @@ namespace NativeCameraCapture
       }
     }
 
-    public void SetWhiteBalanceMode(int mode)
+    public enum FlashMode
+    {
+      Off = 0,
+      On = 1,
+      Auto = 2
+    }
+
+    public void SetFlashMode(FlashMode mode)
     {
       if (_isApplicationQuitting)
       {
@@ -347,7 +354,31 @@ namespace NativeCameraCapture
 
       try
       {
-        cameraService?.SetWhiteBalanceMode(mode);
+        cameraService?.SetFlashMode((int)mode);
+      }
+      catch (Exception e)
+      {
+        Debug.LogError($"CameraCapture :: Error setting flash mode: {e.Message}");
+      }
+    }
+
+    public enum WhiteBalanceMode
+    {
+      Locked = 0,
+      AutoWhiteBalance = 1,
+      ContinuousAutoWhiteBalance = 2
+    }
+
+    public void SetWhiteBalanceMode(WhiteBalanceMode mode)
+    {
+      if (_isApplicationQuitting)
+      {
+        return;
+      }
+
+      try
+      {
+        cameraService?.SetWhiteBalanceMode((int)mode);
       }
       catch (Exception e)
       {
@@ -1163,6 +1194,7 @@ namespace NativeCameraCapture
     void ResumePreview();
     void TakePhoto();
     void SwitchCamera();
+    void SetFlashMode(int mode);
     void SetColorTemperature(float temperature);
     void SetWhiteBalanceMode(int mode);
     void StopCamera();
@@ -1176,6 +1208,7 @@ namespace NativeCameraCapture
     public void InitializeCamera(string gameObjectName) => throw new NotImplementedException();
     public void PausePreview() => throw new NotImplementedException();
     public void ResumePreview() => throw new NotImplementedException();
+    public void SetFlashMode(int mode) => throw new NotImplementedException();
     public void SetColorTemperature(float temperature) => throw new NotImplementedException();
     public void SetWhiteBalanceMode(int mode) => throw new NotImplementedException();
     public void StartPreview() => throw new NotImplementedException();
@@ -1207,6 +1240,8 @@ namespace NativeCameraCapture
     [DllImport("__Internal")]
     private static extern void _SwitchCamera();
     [DllImport("__Internal")]
+    private static extern void _SetFlashMode(int mode);
+    [DllImport("__Internal")]
     private static extern void _SetWhiteBalanceMode(int mode);
     [DllImport("__Internal")]
     private static extern void _SetColorTemperature(float temperature);
@@ -1236,6 +1271,7 @@ namespace NativeCameraCapture
     public void ResumePreview() => _ResumePreview();
     public void TakePhoto() => _TakePhoto();
     public void SwitchCamera() => _SwitchCamera();
+    public void SetFlashMode(int mode) => _SetFlashMode(mode);
     public void SetWhiteBalanceMode(int mode) => _SetWhiteBalanceMode(mode);
     public void SetColorTemperature(float temperature) => _SetColorTemperature(temperature);
     public void StopCamera() => _StopCamera();

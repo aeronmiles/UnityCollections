@@ -17,6 +17,7 @@ class CameraCapture: NSObject, AVCapturePhotoCaptureDelegate,
   private var currentVideoOrientation: AVCaptureVideoOrientation = .portrait
   private var isVideoMirrored: Bool = false
   private var isPaused: Bool = false
+  private var flashMode: AVCaptureDevice.FlashMode = .auto
 
   // Thread safety
   private let sessionQueue = DispatchQueue(label: "com.camera.sessionQueue")
@@ -157,7 +158,7 @@ class CameraCapture: NSObject, AVCapturePhotoCaptureDelegate,
 
       let settings = AVCapturePhotoSettings()
       settings.isAutoStillImageStabilizationEnabled = true
-      settings.flashMode = .off  // Set as needed
+      settings.flashMode = self.flashMode  // Set as needed
 
       self.photoOutput?.capturePhoto(with: settings, delegate: self)
     }
@@ -199,6 +200,15 @@ class CameraCapture: NSObject, AVCapturePhotoCaptureDelegate,
         )
       }
     }
+  }
+
+  @objc func setFlashMode(_ mode: Int) {
+    guard let flashMode = AVCaptureDevice.FlashMode(rawValue: mode) else {
+      print("CameraCapture.swift :: Invalid flash mode: \(mode)")
+      return
+    }
+    self.flashMode = flashMode
+    print("CameraCapture.swift :: Flash mode set to \(flashMode)")
   }
 
   @objc func setWhiteBalanceMode(_ mode: Int) {
@@ -931,6 +941,11 @@ public func _TakePhoto() {
 @_cdecl("_SwitchCamera")
 public func _SwitchCamera() {
   CameraCapture.shared.switchCamera()
+}
+
+@_cdecl("_SetFlashMode")
+public func _SetFlashMode(_ mode: Int) {
+    CameraCapture.shared.setFlashMode(mode)
 }
 
 @_cdecl("_SetWhiteBalanceMode")
