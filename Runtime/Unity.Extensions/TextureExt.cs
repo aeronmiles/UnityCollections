@@ -767,7 +767,6 @@ public static class TextureExt
     RenderTexture.active = cachedRT;
   }
 
-
   public static void BlitToTex(this RenderTexture sourceTex, Texture2D texOut, Material[] mats, bool mipChains = false)
   {
     sourceTex.BlitMaterials(mats);
