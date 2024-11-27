@@ -105,7 +105,8 @@ class CameraCapture: NSObject, AVCapturePhotoCaptureDelegate,
       self.isPaused = true
       self.captureSession?.stopRunning()
 
-      DispatchQueue.main.async {
+      DispatchQueue.main.async { [weak self] in
+        guard let self = self else { return }
         UnityBridge.sendMessage(
           toGameObject: self.gameObjectName,
           methodName: "OnPreviewPaused",
@@ -122,7 +123,8 @@ class CameraCapture: NSObject, AVCapturePhotoCaptureDelegate,
       self.isPaused = false
       self.captureSession?.startRunning()
 
-      DispatchQueue.main.async {
+      DispatchQueue.main.async { [weak self] in
+        guard let self = self else { return }
         UnityBridge.sendMessage(
           toGameObject: self.gameObjectName,
           methodName: "OnPreviewResumed",
@@ -130,6 +132,56 @@ class CameraCapture: NSObject, AVCapturePhotoCaptureDelegate,
         )
       }
     }
+  }
+
+  func getOptimalMaxPhotoDimensions(targetLongestEdge: Int) -> CMVideoDimensions? {
+    guard
+      let device = AVCaptureDevice.default(
+        .builtInWideAngleCamera,
+        for: .video,
+        position: currentCameraPosition
+      )
+    else {
+      fatalError("No camera available")
+      DispatchQueue.main.async { [weak self] in
+        guard let self = self else { return }
+        UnityBridge.sendMessage(
+          toGameObject: self.gameObjectName,
+          methodName: "OnMessage",
+          message: "No Camera Available"
+        )
+      }
+      return nil
+    }
+    // Get the active format (the current configuration of the camera)
+    let activeFormat = device.activeFormat
+
+    // Access the supported maximum photo dimensions for the active format
+    let supportedDimensions = activeFormat.supportedMaxPhotoDimensions
+
+    var closestDimension: CMVideoDimensions?
+    var minDifference = Int.max
+
+    for dimension in supportedDimensions {
+      let longestEdge = max(dimension.width, dimension.height)
+      let difference = abs(Int(longestEdge) - Int(targetLongestEdge))
+
+      if difference < minDifference {
+        minDifference = difference
+        closestDimension = dimension
+      }
+      // Returns only largest dimension n == 1
+      //  DispatchQueue.main.async { [weak self] in
+      //   guard let self = self else { return }
+      //   UnityBridge.sendMessage(
+      //     toGameObject: self.gameObjectName,
+      //     methodName: "OnMessage",
+      //     message: "Camera Dimension: \(dimension.width)x\(dimension.height)"
+      //   )
+      // }
+    }
+
+    return closestDimension
   }
 
   @objc func takePhoto() {
@@ -157,10 +209,13 @@ class CameraCapture: NSObject, AVCapturePhotoCaptureDelegate,
       self.updateVideoOrientation()
 
       let settings = AVCapturePhotoSettings()
+      if let maxPhotoDimensions = self.getOptimalMaxPhotoDimensions(targetLongestEdge: 2048) {
+        settings.maxPhotoDimensions = maxPhotoDimensions
+      }
       settings.isAutoStillImageStabilizationEnabled = true
-      settings.flashMode = self.flashMode  // Set as needed
+      settings.flashMode = self.flashMode
 
-      self.photoOutput?.capturePhoto(with: settings, delegate: self)
+      photoOutput.capturePhoto(with: settings, delegate: self)
     }
   }
 
@@ -192,7 +247,8 @@ class CameraCapture: NSObject, AVCapturePhotoCaptureDelegate,
       print("CameraCapture.swift :: Stopping camera")
       self.cleanup()
 
-      DispatchQueue.main.async {
+      DispatchQueue.main.async { [weak self] in
+        guard let self = self else { return }
         UnityBridge.sendMessage(
           toGameObject: self.gameObjectName,
           methodName: "OnCameraStopped",
@@ -250,11 +306,11 @@ class CameraCapture: NSObject, AVCapturePhotoCaptureDelegate,
   }
 
   @objc func setColorTemperature(_ temperature: Float) {
-    // Clamp temperature to supported range (2500 K to 7500 K for example)
-    clampedTemperature = max(2500, min(temperature, 7500))
-
     sessionQueue.async { [weak self] in
       guard let self = self else { return }
+
+      // Clamp temperature to supported range (2500 K to 7500 K for example)
+      self.clampedTemperature = max(2500, min(temperature, 7500))
 
       guard
         let device = AVCaptureDevice.default(
@@ -331,7 +387,9 @@ class CameraCapture: NSObject, AVCapturePhotoCaptureDelegate,
     guard let captureSession = captureSession else { return }
 
     captureSession.beginConfiguration()
-    defer {
+
+    // Create configuration cleanup block with weak self
+    let configurationCleanup = { [weak self] in
       captureSession.commitConfiguration()
 
       DispatchQueue.main.async { [weak self] in
@@ -343,6 +401,8 @@ class CameraCapture: NSObject, AVCapturePhotoCaptureDelegate,
         )
       }
     }
+
+    defer { configurationCleanup() }
 
     // Configure session preset
     if captureSession.canSetSessionPreset(.photo) {
@@ -373,17 +433,31 @@ class CameraCapture: NSObject, AVCapturePhotoCaptureDelegate,
       return
     }
 
-    // Setup photo output
+    // Setup photo output with weak self capture
+    setupPhotoOutput(captureSession)
+
+    // Setup video output with weak self capture
+    setupVideoOutput(captureSession)
+
+    // Setup buffers with weak self capture
+    setupBuffers()
+
+    previewLayer = AVCaptureVideoPreviewLayer(session: captureSession)
+  }
+
+  private func setupPhotoOutput(_ captureSession: AVCaptureSession) {
     photoOutput = AVCapturePhotoOutput()
     if let photoOutput = photoOutput,
       captureSession.canAddOutput(photoOutput)
     {
-      photoOutput.isHighResolutionCaptureEnabled = true
       captureSession.addOutput(photoOutput)
     }
+  }
 
-    // Setup video output
+  private func setupVideoOutput(_ captureSession: AVCaptureSession) {
     videoDataOutput = AVCaptureVideoDataOutput()
+
+    // Use weak self in the video output delegate
     videoDataOutput?.setSampleBufferDelegate(self, queue: videoProcessingQueue)
 
     if let videoDataOutput = videoDataOutput {
@@ -396,7 +470,9 @@ class CameraCapture: NSObject, AVCapturePhotoCaptureDelegate,
         captureSession.addOutput(videoDataOutput)
       }
     }
+  }
 
+  private func setupBuffers() {
     // Allocate double buffers for preview frames
     let maxPreviewBufferSize = calculateMaxPreviewBufferSize()
     for i in 0..<2 {
@@ -412,15 +488,30 @@ class CameraCapture: NSObject, AVCapturePhotoCaptureDelegate,
       photoBufferSizes[i] = maxPhotoBufferSize
       photoBufferReady[i] = false
     }
-
-    previewLayer = AVCaptureVideoPreviewLayer(session: captureSession)
   }
 
   private func performCameraSwitch() throws {
     guard let captureSession = captureSession else { return }
 
     captureSession.beginConfiguration()
-    defer { captureSession.commitConfiguration() }
+
+    // Create a cleanup block that captures weak self
+    let configurationCleanup = { [weak self] in
+      captureSession.commitConfiguration()
+
+      // Notify Unity of camera switch completion
+      DispatchQueue.main.async { [weak self] in
+        guard let self = self else { return }
+        UnityBridge.sendMessage(
+          toGameObject: self.gameObjectName,
+          methodName: "OnCameraSwitched",
+          message: ""
+        )
+      }
+    }
+
+    // Use defer with our cleanup block
+    defer { configurationCleanup() }
 
     // Remove current input
     if let currentInput = currentCameraInput {
@@ -552,11 +643,27 @@ class CameraCapture: NSObject, AVCapturePhotoCaptureDelegate,
     if dataLength > photoBufferSizes[bufferIndex] {
       if !resizeBuffer(index: bufferIndex, type: .photo, requiredSize: dataLength) {
         self.photoOutputError(errorMsg: "Failed to resize photo buffer")
+        DispatchQueue.main.async { [weak self] in
+          guard let self = self else { return }
+          UnityBridge.sendMessage(
+            toGameObject: self.gameObjectName,
+            methodName: "OnMessage",
+            message: "Failed to resize photo buffer"
+          )
+        }
         return
       }
       // Re-get buffer pointer after resize
       guard let resizedBuffer = photoBuffers[bufferIndex] else {
         self.photoOutputError(errorMsg: "Photo buffer is nil after resize")
+        DispatchQueue.main.async { [weak self] in
+          guard let self = self else { return }
+          UnityBridge.sendMessage(
+            toGameObject: self.gameObjectName,
+            methodName: "OnMessage",
+            message: "Failed to resize photo buffer"
+          )
+        }
         return
       }
       buffer = resizedBuffer
@@ -609,7 +716,7 @@ class CameraCapture: NSObject, AVCapturePhotoCaptureDelegate,
     from connection: AVCaptureConnection
   ) {
     let currentTime = CACurrentMediaTime()
-    guard currentTime - lastFrameTime >= 0.05 else { return }  // Limit to 20 fps
+    guard currentTime - lastFrameTime >= 0.075 else { return }  // Limit to 15 fps
     guard !self.isPaused else { return }
     guard !self.isCapturing else { return }
     lastFrameTime = currentTime
@@ -830,15 +937,23 @@ extension CameraCapture {
   }
 
   private func resizeBuffer(index: Int, type: BufferType, requiredSize: Int) -> Bool {
-    bufferResizeLock.sync {
+    bufferResizeLock.sync { [weak self] in
+      guard let self = self else { return false }
+
       let currentSize = type == .preview ? previewBufferSizes[index] : photoBufferSizes[index]
       let newSize = calculateNewBufferSize(currentSize: currentSize, requiredSize: requiredSize)
 
       // Check if new size exceeds maximum
       guard newSize <= maxBufferSize else {
-        print(
-          "CameraCapture.swift :: Required buffer size \(requiredSize) exceeds maximum allowed size"
-        )
+        DispatchQueue.main.async { [weak self] in
+          guard let self = self else { return }
+          UnityBridge.sendMessage(
+            toGameObject: self.gameObjectName,
+            methodName: "OnMessage",
+            message:
+              "CameraCapture.swift :: Required buffer size \(requiredSize) exceeds maximum allowed size"
+          )
+        }
         return false
       }
 
@@ -851,10 +966,10 @@ extension CameraCapture {
       }
 
       // Attempt to allocate new buffer
-      let newBuffer: UnsafeMutablePointer<UInt8>?
-      do {
-        newBuffer = UnsafeMutablePointer<UInt8>.allocate(capacity: newSize)
-      } catch {
+      guard
+        let newBuffer = UnsafeMutablePointer<UInt8>.allocate(capacity: newSize)
+          as UnsafeMutablePointer<UInt8>?
+      else {
         print("CameraCapture.swift :: Failed to allocate new buffer of size \(newSize)")
         return false
       }
@@ -862,27 +977,32 @@ extension CameraCapture {
       // Copy existing data if there's an old buffer
       if let existingBuffer = oldBuffer {
         let copySize = min(currentSize, newSize)
-        newBuffer?.assign(from: existingBuffer, count: copySize)
+        newBuffer.assign(from: existingBuffer, count: copySize)
       }
 
       // Update state with new buffer
       if type == .preview {
-        // Deallocate old buffer before assigning new one
         previewBuffers[index]?.deallocate()
         previewBuffers[index] = newBuffer
         previewBufferSizes[index] = newSize
         previewBufferReady[index] = false
       } else {
-        // Deallocate old buffer before assigning new one
         photoBuffers[index]?.deallocate()
         photoBuffers[index] = newBuffer
         photoBufferSizes[index] = newSize
         photoBufferReady[index] = false
       }
 
-      print(
-        "CameraCapture.swift :: Successfully resized \(type) buffer \(index) from \(currentSize) to \(newSize) bytes"
-      )
+      DispatchQueue.main.async { [weak self] in
+        guard let self = self else { return }
+        UnityBridge.sendMessage(
+          toGameObject: self.gameObjectName,
+          methodName: "OnMessage",
+          message:
+            "CameraCapture.swift :: Successfully resized \(type) buffer \(index) from \(currentSize) to \(newSize) bytes"
+        )
+      }
+
       return true
     }
   }
@@ -945,7 +1065,7 @@ public func _SwitchCamera() {
 
 @_cdecl("_SetFlashMode")
 public func _SetFlashMode(_ mode: Int) {
-    CameraCapture.shared.setFlashMode(mode)
+  CameraCapture.shared.setFlashMode(mode)
 }
 
 @_cdecl("_SetWhiteBalanceMode")
