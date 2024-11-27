@@ -129,9 +129,9 @@ Shader "AM/Sampling/Lanczos2UpscalerCAS"
 
                 float3 col_out = (col + colw * A) / (1.0 + 4.0 * A);
 
-                float3 lutColor = col_out;
-                lutColor = float4(sampleCubeLUT(_LutTex, col_out.rgb), 1.0);
-                col_out = lerp(col_out, lutColor, _LutAmount);
+                // float3 lutColor = col_out;
+                // lutColor = float4(sampleCubeLUT(_LutTex, col_out.rgb), 1.0);
+                // col_out = lerp(col_out, lutColor, _LutAmount);
                 
                 // Levels
                 // col_out = LINtoRGB(levels(RGBtoLIN(col_out), _Lift, _Gain, _GammaShadows, _GammaHighlights));
