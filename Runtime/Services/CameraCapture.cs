@@ -145,7 +145,7 @@ namespace NativeCameraCapture
       }
     }
 
-    private void CleanupResources(bool force = false)
+    public void CleanupResources(bool force = false)
     {
 #if DEBUG
       LogMemoryUsage("Before cleanup");
