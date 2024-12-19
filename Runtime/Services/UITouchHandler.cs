@@ -70,7 +70,6 @@ public class UITouchHandler : MonoSingleton<UITouchHandler>
     }
   }
 
-
   protected int totalHeight = 0;
   // @TODO: Validate this base implementation
   public virtual Vector2 MapTouchToDisplay(Vector2 touchPosition)

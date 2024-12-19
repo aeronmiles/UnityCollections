@@ -24,7 +24,7 @@ public static class TextureExt
   {
     if (rt.volumeDepth == 0)
     {
-      Debug.LogError("RenderTexture is not a 3D texture");
+      Debug.LogError("TextureExt :: ToTexture3D :: RenderTexture is not a 3D texture");
       return null;
     }
 
@@ -137,25 +137,80 @@ public static class TextureExt
     mipTexOut.Apply(mipChains);
   }
 
-  private static Material _TileRotateMaterial;
-  private static Material TileRotateMaterial
+  [BurstCompile]
+  private struct Rotate180Job : IJobFor
   {
-    get
+    [ReadOnly] public NativeArray<byte> sourceBytes;
+    [WriteOnly] public NativeArray<byte> outputBytes;
+    public int2 dimensions;
+    public int bytesPerPixel;
+
+    public void Execute(int index)
     {
-      if (_TileRotateMaterial == null)
+      // Calculate the 2D coordinates for the current pixel
+      int2 output = math.int2(index % dimensions.x, index / dimensions.x);
+
+      // For 180 degree rotation, we flip both x and y coordinates
+      int2 source = math.int2(
+          dimensions.x - 1 - output.x,
+          dimensions.y - 1 - output.y
+      );
+
+      int sourceIndex = (source.y * dimensions.x + source.x) * bytesPerPixel;
+      int outputIndex = index * bytesPerPixel;
+
+      // Copy all bytes for the pixel at once
+      for (int i = 0; i < bytesPerPixel; i++)
       {
-        var shader = Shader.Find("AM/Unlit/TileRotate");
-        if (shader == null)
-        {
-          Debug.LogError("Failed to find TileRotate shader. Make sure it's included in the project and the name is correct.");
-        }
-        else
-        {
-          _TileRotateMaterial = new Material(shader);
-        }
+        outputBytes[outputIndex + i] = sourceBytes[sourceIndex + i];
       }
-      return _TileRotateMaterial;
     }
+  }
+
+  [BurstCompile]
+  public static void Rotate180(this Texture2D sourceTex, Texture2D outTex)
+  {
+    if (sourceTex == null)
+    {
+      throw new ArgumentNullException(nameof(sourceTex), "Source texture is null.");
+    }
+
+    if (outTex == null)
+    {
+      throw new ArgumentNullException(nameof(outTex), "Output texture is null.");
+    }
+
+    if (sourceTex.width != outTex.width || sourceTex.height != outTex.height)
+    {
+      throw new ArgumentException("Output texture dimensions must match source texture dimensions.");
+    }
+
+    if (sourceTex.format != outTex.format)
+    {
+      throw new ArgumentException("Output texture format must match source texture format.");
+    }
+
+    var sourceBytes = sourceTex.GetRawTextureData<byte>();
+    var outputBytes = outTex.GetRawTextureData<byte>();
+
+    int bytesPerPixel = GetBytesPerPixel(sourceTex.format);
+
+    var job = new Rotate180Job
+    {
+      sourceBytes = sourceBytes,
+      outputBytes = outputBytes,
+      dimensions = new int2(sourceTex.width, sourceTex.height),
+      bytesPerPixel = bytesPerPixel
+    };
+
+    // Calculate the optimal batch size (in pixels)
+    int totalPixels = sourceTex.width * sourceTex.height;
+    int batchSize = math.max(32, math.min(1024, totalPixels / SystemInfo.processorCount));
+
+    job.ScheduleParallel(totalPixels, batchSize, default).Complete();
+    outTex.Apply();
+
+    Debug.Log($"TextureExt :: Rotate180 :: Rotated {sourceTex.width}x{sourceTex.height} texture by 180 degrees");
   }
 
   [BurstCompile]
@@ -202,7 +257,7 @@ public static class TextureExt
     job.ScheduleParallel(totalPixels, batchSize, default).Complete();
     outTex.Apply();
 
-    Debug.Log($"Rotated {sourceTex.width}x{sourceTex.height} texture by 90 degrees {(counterClockwise ? "counter-clockwise" : "clockwise")}");
+    Debug.Log($"TextureExt :: Rotate90 :: Rotated {sourceTex.width}x{sourceTex.height} texture by 90 degrees {(counterClockwise ? "counter-clockwise" : "clockwise")}");
   }
 
   private static int GetBytesPerPixel(TextureFormat format) => format switch
@@ -237,6 +292,28 @@ public static class TextureExt
       {
         outputBytes[outputIndex + i] = sourceBytes[sourceIndex + i];
       }
+    }
+  }
+
+
+  private static Material _TileRotateMaterial;
+  private static Material TileRotateMaterial
+  {
+    get
+    {
+      if (_TileRotateMaterial == null)
+      {
+        var shader = Shader.Find("AM/Unlit/TileRotate");
+        if (shader == null)
+        {
+          Debug.LogError("Failed to find TileRotate shader. Make sure it's included in the project and the name is correct.");
+        }
+        else
+        {
+          _TileRotateMaterial = new Material(shader);
+        }
+      }
+      return _TileRotateMaterial;
     }
   }
 

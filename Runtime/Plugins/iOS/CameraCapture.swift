@@ -142,7 +142,6 @@ class CameraCapture: NSObject, AVCapturePhotoCaptureDelegate,
         position: currentCameraPosition
       )
     else {
-      fatalError("No camera available")
       DispatchQueue.main.async { [weak self] in
         guard let self = self else { return }
         UnityBridge.sendMessage(
@@ -188,6 +187,23 @@ class CameraCapture: NSObject, AVCapturePhotoCaptureDelegate,
     videoProcessingQueue.async { [weak self] in
       guard let self = self else { return }
 
+      // Check if capture session is running
+      guard let captureSession = self.captureSession,
+        captureSession.isRunning
+      else {
+        self.photoOutputError(errorMsg: "Capture session is not running")
+        return
+      }
+
+      // Check if photo output has an active video connection
+      guard let photoOutput = self.photoOutput,
+        let videoConnection = photoOutput.connection(with: .video),
+        videoConnection.isEnabled
+      else {
+        self.photoOutputError(errorMsg: "No active video connection available")
+        return
+      }
+
       // Check if we're already capturing
       guard !self.isCapturing else {
         print("CameraCapture.swift :: Photo capture already in progress")
@@ -207,14 +223,39 @@ class CameraCapture: NSObject, AVCapturePhotoCaptureDelegate,
       }
 
       self.updateVideoOrientation()
+      var settings: AVCapturePhotoSettings
 
-      let settings = AVCapturePhotoSettings()
-      if let maxPhotoDimensions = self.getOptimalMaxPhotoDimensions(targetLongestEdge: 2048) {
-        settings.maxPhotoDimensions = maxPhotoDimensions
+      if photoOutput.availablePhotoCodecTypes.contains(.jpeg) {
+        settings = AVCapturePhotoSettings(format: [AVVideoCodecKey: AVVideoCodecType.jpeg])
+      } else if photoOutput.availablePhotoCodecTypes.contains(.hevc) {
+        settings = AVCapturePhotoSettings(format: [AVVideoCodecKey: AVVideoCodecType.hevc])
+      } else {
+        // Fall back to first available codec type
+        guard let firstCodec = photoOutput.availablePhotoCodecTypes.first else {
+          print("CameraCapture.swift :: No available photo codec types")
+          self.isCapturing = false
+          self.photoOutputError(errorMsg: "No available photo codec types")
+          return
+        }
+        settings = AVCapturePhotoSettings(format: [AVVideoCodecKey: firstCodec])
       }
-      settings.isAutoStillImageStabilizationEnabled = true
-      settings.flashMode = self.flashMode
 
+      // Ensure flash mode is supported
+      let supportedFlashModes = photoOutput.supportedFlashModes
+      if !supportedFlashModes.contains(self.flashMode) {
+        if let fallbackFlashMode = supportedFlashModes.first {
+          print(
+            "CameraCapture.swift :: Requested flash mode \(self.flashMode.rawValue) not supported. Falling back to \(fallbackFlashMode.rawValue)."
+          )
+          self.flashMode = fallbackFlashMode
+        } else {
+          // If no flash modes are supported, default to off
+          print("CameraCapture.swift :: No flash modes supported. Using .off.")
+          self.flashMode = .off
+        }
+      }
+
+      settings.flashMode = self.flashMode
       photoOutput.capturePhoto(with: settings, delegate: self)
     }
   }
@@ -263,8 +304,30 @@ class CameraCapture: NSObject, AVCapturePhotoCaptureDelegate,
       print("CameraCapture.swift :: Invalid flash mode: \(mode)")
       return
     }
-    self.flashMode = flashMode
-    print("CameraCapture.swift :: Flash mode set to \(flashMode)")
+
+    // Check if the current photoOutput is available
+    guard let photoOutput = self.photoOutput else {
+      print("CameraCapture.swift :: Photo output not available, cannot set flash mode.")
+      return
+    }
+
+    let supportedFlashModes = photoOutput.supportedFlashModes
+    if supportedFlashModes.contains(flashMode) {
+      self.flashMode = flashMode
+      print("CameraCapture.swift :: Flash mode set to \(flashMode)")
+    } else {
+      // If the requested flash mode isn't supported, fall back to a supported mode
+      if let fallbackFlashMode = supportedFlashModes.first {
+        self.flashMode = fallbackFlashMode
+        print(
+          "CameraCapture.swift :: Requested flash mode \(flashMode.rawValue) not supported. Falling back to \(fallbackFlashMode.rawValue)."
+        )
+      } else {
+        // If no modes are supported, fall back to off
+        self.flashMode = .off
+        print("CameraCapture.swift :: No supported flash modes found, falling back to off.")
+      }
+    }
   }
 
   @objc func setWhiteBalanceMode(_ mode: Int) {
@@ -619,6 +682,19 @@ class CameraCapture: NSObject, AVCapturePhotoCaptureDelegate,
       return
     }
 
+    // Get CGImage representation
+    guard let cgImage = photo.cgImageRepresentation() else {
+      self.photoOutputError(errorMsg: "Failed to get CGImage representation")
+      return
+    }
+
+    let width = cgImage.width
+    let height = cgImage.height
+    let bitsPerComponent = 8
+    let bytesPerPixel = 4  // BGRA
+    let bytesPerRow = width * bytesPerPixel
+    let dataLength = height * bytesPerRow
+
     let bufferIndex = currentPhotoBufferIndex
     guard var buffer = photoBuffers[bufferIndex] else {
       print("CameraCapture.swift :: Photo buffer is nil")
@@ -632,64 +708,53 @@ class CameraCapture: NSObject, AVCapturePhotoCaptureDelegate,
       return
     }
 
-    guard let photoData = photo.fileDataRepresentation() else {
-      self.photoOutputError(errorMsg: "Error capturing photo: No file data representation")
-      return
-    }
-
-    let dataLength = photoData.count
-
     // Check if buffer needs resizing
     if dataLength > photoBufferSizes[bufferIndex] {
       if !resizeBuffer(index: bufferIndex, type: .photo, requiredSize: dataLength) {
         self.photoOutputError(errorMsg: "Failed to resize photo buffer")
-        DispatchQueue.main.async { [weak self] in
-          guard let self = self else { return }
-          UnityBridge.sendMessage(
-            toGameObject: self.gameObjectName,
-            methodName: "OnMessage",
-            message: "Failed to resize photo buffer"
-          )
-        }
         return
       }
       // Re-get buffer pointer after resize
       guard let resizedBuffer = photoBuffers[bufferIndex] else {
         self.photoOutputError(errorMsg: "Photo buffer is nil after resize")
-        DispatchQueue.main.async { [weak self] in
-          guard let self = self else { return }
-          UnityBridge.sendMessage(
-            toGameObject: self.gameObjectName,
-            methodName: "OnMessage",
-            message: "Failed to resize photo buffer"
-          )
-        }
         return
       }
       buffer = resizedBuffer
     }
 
-    // Copy data into the buffer
-    photoData.copyBytes(to: buffer, count: dataLength)
+    // Create color space and context
+    let colorSpace = CGColorSpaceCreateDeviceRGB()
 
-    // Get photo dimensions
-    guard let cgImage = photo.cgImageRepresentation() else {
-      self.photoOutputError(
-        errorMsg: "CameraCapture.swift :: Error getting CGImage representation of photo")
-      return
+    autoreleasepool {
+      // Create context with our buffer
+      guard
+        let context = CGContext(
+          data: buffer,
+          width: width,
+          height: height,
+          bitsPerComponent: bitsPerComponent,
+          bytesPerRow: bytesPerRow,
+          space: colorSpace,
+          bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue
+            | CGBitmapInfo.byteOrder32Little.rawValue
+        )
+      else {
+        self.photoOutputError(errorMsg: "Failed to create graphics context")
+        return
+      }
+
+      // Draw the image into our buffer
+      let rect = CGRect(x: 0, y: 0, width: width, height: height)
+      context.draw(cgImage, in: rect)
     }
-
-    let width = cgImage.width
-    let height = cgImage.height
 
     // Update video orientation and mirroring state
     self.updateVideoOrientation()
     let imageOrientation = self.getImageOrientation()
-    let isMirrored = self.currentCameraPosition == .front
 
     // Prepare pointer data
     let pointerData =
-      "\(UInt(bitPattern: buffer)),\(width),\(height),\(dataLength),\(currentVideoOrientation.rawValue),\(imageOrientation.rawValue),\(isMirrored)"
+      "\(UInt(bitPattern: buffer)),\(width),\(height),\(dataLength),\(imageOrientation.rawValue)"
 
     // Mark the buffer as ready
     photoBufferReady[bufferIndex] = true
@@ -716,7 +781,7 @@ class CameraCapture: NSObject, AVCapturePhotoCaptureDelegate,
     from connection: AVCaptureConnection
   ) {
     let currentTime = CACurrentMediaTime()
-    guard currentTime - lastFrameTime >= 0.075 else { return }  // Limit to 15 fps
+    guard currentTime - lastFrameTime >= 0.075 else { return }  // Limit to ~15 fps
     guard !self.isPaused else { return }
     guard !self.isCapturing else { return }
     lastFrameTime = currentTime
@@ -747,6 +812,8 @@ class CameraCapture: NSObject, AVCapturePhotoCaptureDelegate,
     let width = CVPixelBufferGetWidth(imageBuffer)
     let height = CVPixelBufferGetHeight(imageBuffer)
     let bytesPerRow = CVPixelBufferGetBytesPerRow(imageBuffer)
+    let expectedBytesPerRow = width * 4  // BGRA32: 4 bytes per pixel
+    let packedDataLength = height * expectedBytesPerRow
     let dataLength = height * bytesPerRow
 
     // Check if buffer needs resizing
@@ -768,8 +835,20 @@ class CameraCapture: NSObject, AVCapturePhotoCaptureDelegate,
       return
     }
 
-    // Copy data into the buffer
-    memcpy(buffer, baseAddress, dataLength)
+    // Convert to typed pointers for row-by-row operations
+    let srcPtr = baseAddress.bindMemory(to: UInt8.self, capacity: dataLength)
+
+    if bytesPerRow == expectedBytesPerRow {
+      // No padding, direct copy
+      memcpy(buffer, srcPtr, dataLength)
+    } else {
+      // There is padding at the end of each row; copy row-by-row
+      for y in 0..<height {
+        let rowSrcPtr = srcPtr.advanced(by: y * bytesPerRow)
+        let rowDstPtr = buffer.advanced(by: y * expectedBytesPerRow)
+        memcpy(rowDstPtr, rowSrcPtr, expectedBytesPerRow)
+      }
+    }
 
     // Update video orientation and mirroring state
     if connection.isVideoOrientationSupported {
@@ -780,11 +859,12 @@ class CameraCapture: NSObject, AVCapturePhotoCaptureDelegate,
       isVideoMirrored = connection.isVideoMirrored
     }
 
-    let imageOrientation = getImageOrientation()
+    self.updateVideoOrientation()
+    let imageOrientation = self.getImageOrientation()
 
     // Prepare pointer data
     let pointerData =
-      "\(UInt(bitPattern: buffer)),\(width),\(height),\(bytesPerRow),\(dataLength),\(currentVideoOrientation.rawValue),\(imageOrientation.rawValue),\(isVideoMirrored)"
+      "\(UInt(bitPattern: buffer)),\(width),\(height),\(packedDataLength),\(imageOrientation.rawValue)"
 
     // Mark the buffer as ready
     previewBufferReady[bufferIndex] = true
@@ -792,7 +872,7 @@ class CameraCapture: NSObject, AVCapturePhotoCaptureDelegate,
     // Switch to the next buffer
     currentPreviewBufferIndex = (currentPreviewBufferIndex + 1) % 2
 
-    // Send data to Unity
+    // Send data to Unity on the main thread
     DispatchQueue.main.async { [weak self] in
       guard let self = self else { return }
       UnityBridge.sendMessage(
@@ -854,14 +934,20 @@ class CameraCapture: NSObject, AVCapturePhotoCaptureDelegate,
 
     switch currentVideoOrientation {
     case .portrait:
+      // Device is held vertically, home button at the bottom
       return isMirrored ? .leftMirrored : .right
     case .portraitUpsideDown:
+      // Device is held vertically, home button at the top
       return isMirrored ? .rightMirrored : .left
     case .landscapeRight:
-      return isMirrored ? .downMirrored : .up
+      // Device is held horizontally, home button on the right
+      return isMirrored ? .upMirrored : .up
     case .landscapeLeft:
-      return isMirrored ? .upMirrored : .down
+      // Device is held horizontally, home button on the left
+      return isMirrored ? .downMirrored : .down
     @unknown default:
+      // Log a warning or handle the unknown orientation explicitly
+      print("CameraCapture.swift :: Unknown video orientation encountered.")
       return isMirrored ? .leftMirrored : .right
     }
   }
@@ -977,7 +1063,7 @@ extension CameraCapture {
       // Copy existing data if there's an old buffer
       if let existingBuffer = oldBuffer {
         let copySize = min(currentSize, newSize)
-        newBuffer.assign(from: existingBuffer, count: copySize)
+        newBuffer.update(from: existingBuffer, count: copySize)
       }
 
       // Update state with new buffer

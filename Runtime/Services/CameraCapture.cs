@@ -3,9 +3,7 @@ using System;
 using System.Threading;
 using System.Globalization;
 using System.Runtime.InteropServices;
-using System.Linq;
-using AVFoundation;
-
+using System.Buffers;
 
 namespace NativeCameraCapture
 {
@@ -14,9 +12,7 @@ namespace NativeCameraCapture
 
     [Header("Debug")]
     [SerializeField] private Texture2D _debugEditorPhoto;
-    [SerializeField] private AVCaptureVideoOrientation _debugVideoOrientation = AVCaptureVideoOrientation.Portrait;
     [SerializeField] private UIImage.Orientation _debugImageOrientation = UIImage.Orientation.Up;
-    [SerializeField] private bool _debugIsMirrored = true;
 
     private ICameraService _cameraService;
     private ICameraService cameraService
@@ -25,24 +21,24 @@ namespace NativeCameraCapture
       {
         if (_cameraService == null)
         {
-#if UNITY_IOS
+#if UNITY_EDITOR
+          // @TODO: Implement
+          // _cameraService = new UnityEditorCameraService();
+#elif UNITY_IOS
           _cameraService = new IosCameraService();
 #elif UNITY_ANDROID
           // @TODO: Implement
           throw new NotImplementedException("Android camera service not implemented");
           // _cameraService = new AndroidCameraService();
-#elif UNITY_EDITOR
-          // @TODO: Implement
-          // _cameraService = new UnityEditorCameraService();
 #endif
         }
         return _cameraService;
       }
     }
 
-    public event Action<Texture2D, float, Vector3, bool> OnPhotoCaptured;
+    public event Action<Texture2D, float, Vector3> OnPhotoCaptured;
     public event Action<string> OnPhotoCapturedError;
-    public event Action<Texture2D, float, Vector3, bool> OnPreviewTextureUpdated;
+    public event Action<Texture2D, float, Vector3> OnPreviewTextureUpdated;
 
     private Texture2D _photoTexture;
     private Texture2D _previewTexture;
@@ -88,8 +84,8 @@ namespace NativeCameraCapture
       if (isCameraActive && !isPreviewPaused)
       {
         // Simulate preview frame update
-        var (rotation, scale) = CalculateRotationAndScale(_debugVideoOrientation, _debugImageOrientation, _debugIsMirrored);
-        OnPreviewTextureUpdated?.Invoke(_debugEditorPhoto, rotation, scale, _debugIsMirrored);
+        var (rotation, scale) = CalculateRotationAndScale(_debugImageOrientation);
+        OnPreviewTextureUpdated?.Invoke(_debugEditorPhoto, rotation, scale);
       }
     }
 #endif
@@ -274,10 +270,10 @@ namespace NativeCameraCapture
       }
 
 #if UNITY_EDITOR //|| UNITY_IOS
-      var (rotation, scale) = CalculateRotationAndScale(AVCaptureVideoOrientation.Portrait, UIImage.Orientation.Up, false);
-      OnPhotoCaptured?.Invoke(_debugEditorPhoto, rotation, scale, false);
+      var (rotation, scale) = CalculateRotationAndScale(UIImage.Orientation.Up);
+      OnPhotoCaptured?.Invoke(_debugEditorPhoto, rotation, scale);
       // @TODO: Fix the following, which would be the actual implementation
-      // UpdatePhotoTexture(_debugEditorPhoto.GetRawTextureData(), AVCaptureVideoOrientation.Portrait, UIImage.Orientation.Up, false);
+      // UpdatePhotoTexture(_debugEditorPhoto.GetRawTextureData(), UIImage.Orientation.Up, false);
       return;
 #else
       if (Interlocked.CompareExchange(ref _isCapturing, 1, 0) == 0)
@@ -462,7 +458,7 @@ namespace NativeCameraCapture
           throw new ArgumentException("Received null or empty pointer data");
         }
 
-        var (ptr, width, height, dataLength, videoOrientation, imageOrientation, isMirrored) = ParsePhotoData(pointerData);
+        var (ptr, width, height, dataLength, imageOrientation) = ParsePhotoData(pointerData);
         baseAddress = ptr;
 
         // Step 2: Validate photo parameters
@@ -475,7 +471,8 @@ namespace NativeCameraCapture
         // Step 3: Create managed array and copy data
         try
         {
-          photoBytes = new byte[dataLength];
+          // photoBytes = new byte[dataLength];
+          photoBytes = ArrayPool<byte>.Shared.Rent(dataLength);
           Marshal.Copy(baseAddress, photoBytes, 0, dataLength);
         }
         catch (Exception e)
@@ -502,18 +499,18 @@ namespace NativeCameraCapture
         }
 
         // Step 6: Process the copied data on the main thread
-        var capturedPhotoBytes = photoBytes; // Capture in local variable for closure
-        var capturedParameters = (width, height, videoOrientation, imageOrientation, isMirrored);
+        // var capturedPhotoBytes = photoBytes; // Capture in local variable for closure
+        var capturedParameters = (width, height, imageOrientation);
 
         UnityMainThreadDispatcher.I.Enqueue(() =>
         {
           try
           {
             UpdatePhotoTexture(
-                capturedPhotoBytes,
-                capturedParameters.videoOrientation,
-                capturedParameters.imageOrientation,
-                capturedParameters.isMirrored
+                photoBytes,
+                capturedParameters.width,
+                capturedParameters.height,
+                capturedParameters.imageOrientation
             );
             // LogMemoryUsage("After updating photo texture");
           }
@@ -521,6 +518,7 @@ namespace NativeCameraCapture
           {
             Debug.LogError($"CameraCapture :: Error updating photo texture: {e.Message}\nStack Trace: {e.StackTrace}");
             // CleanupResources(force: true);
+            ArrayPool<byte>.Shared.Return(photoBytes);
             OnPhotoCapturedError?.Invoke($"Failed to process photo: {e.Message}");
           }
           finally
@@ -555,6 +553,7 @@ namespace NativeCameraCapture
       Preview = 0,
       Photo = 1
     }
+
     private void MarkBufferAsRead(IntPtr baseAddress, BufferType type)
     {
       if (baseAddress == IntPtr.Zero)
@@ -594,8 +593,7 @@ namespace NativeCameraCapture
       // Skip during photo capture to prevent race conditions
       if (Interlocked.CompareExchange(ref _isCapturing, 1, 1) == 1)
       {
-        var (ptr, width, height, bytesPerRow, dataLength, videoOrientation, imageOrientation, isMirrored) =
-            ParsePreviewFrameData(pointerData);
+        var (ptr, width, height, dataLength, imageOrientation) = ParsePhotoData(pointerData);
         MarkBufferAsRead(ptr, BufferType.Preview);
         return;
       }
@@ -604,12 +602,11 @@ namespace NativeCameraCapture
       IntPtr baseAddress = IntPtr.Zero;
       try
       {
-        var (ptr, width, height, bytesPerRow, dataLength, videoOrientation, imageOrientation, isMirrored) =
-            ParsePreviewFrameData(pointerData);
+        var (ptr, width, height, dataLength, imageOrientation) = ParsePhotoData(pointerData);
         baseAddress = ptr;
 
         // Validate frame parameters
-        if (!ValidatePreviewFrameParameters(baseAddress, width, height, bytesPerRow, dataLength))
+        if (!ValidatePhotoParameters(baseAddress, width, height, dataLength))
         {
           MarkBufferAsRead(baseAddress, BufferType.Preview);
           Debug.LogError("CameraCapture :: OnPreviewFrameReceived :: Invalid frame parameters");
@@ -620,7 +617,8 @@ namespace NativeCameraCapture
         // Debug.Log($"CameraCapture :: OnPreviewFrameReceived :: Base addr : 0x{baseAddress.ToString("X")}");
 
         // Create array and copy data immediately
-        byte[] frameData = new byte[dataLength];
+        var frameData = ArrayPool<byte>.Shared.Rent(dataLength);
+        // byte[] frameData = new byte[dataLength];
         Marshal.Copy(baseAddress, frameData, 0, dataLength);
         // Immediately mark buffer as read
         MarkBufferAsRead(baseAddress, BufferType.Preview);
@@ -631,15 +629,20 @@ namespace NativeCameraCapture
           {
             try
             {
-              UpdatePreviewTexture(frameData, width, height, videoOrientation, imageOrientation, isMirrored);
+              UpdatePreviewTexture(frameData, width, height, imageOrientation);
               // LogMemoryUsage("After updating preview texture");
             }
             catch (Exception e)
             {
               Debug.LogError($"CameraCapture :: Error updating preview texture: {e.Message}");
+              ArrayPool<byte>.Shared.Return(frameData);
               // CleanupResources(force: true);
             }
           });
+        }
+        else
+        {
+          ArrayPool<byte>.Shared.Return(frameData);
         }
       }
       catch (Exception e)
@@ -660,38 +663,21 @@ namespace NativeCameraCapture
 
       if (width <= 0 || height <= 0)
       {
-        Debug.LogError($"CameraCapture :: ValidatePhotoParameters :: Invalid dimensions: {width}x{height}");
+        Debug.LogError($"CameraCapture :: ValidatePhotoParameters :: Invalid dimensions: width={width}, height={height}");
         return false;
       }
 
-      return true;
-    }
-
-    private bool ValidatePreviewFrameParameters(IntPtr baseAddress, int width, int height, int bytesPerRow, int dataLength)
-    {
-      if (baseAddress == IntPtr.Zero)
-      {
-        Debug.LogError("CameraCapture :: ValidatePreviewFrameParameters :: Received null pointer");
-        return false;
-      }
-
-      if (width <= 0 || height <= 0 || bytesPerRow <= 0)
-      {
-        Debug.LogError($"CameraCapture :: ValidatePreviewFrameParameters :: Invalid dimensions: width={width}, height={height}, bytesPerRow={bytesPerRow}");
-        return false;
-      }
-
-      int expectedDataLength = height * bytesPerRow;
+      int expectedDataLength = height * width * 4;
       if (dataLength != expectedDataLength)
       {
-        Debug.LogError($"CameraCapture :: ValidatePreviewFrameParameters :: Data length mismatch: received={dataLength}, expected={expectedDataLength}");
+        Debug.LogError($"CameraCapture :: ValidatePhotoParameters :: Data length mismatch: received={dataLength}, expected={expectedDataLength}");
         return false;
       }
 
       return true;
     }
 
-    private void UpdatePhotoTexture(byte[] photoBytes, AVCaptureVideoOrientation videoOrientation, UIImage.Orientation imageOrientation, bool isMirrored)
+    private void UpdatePhotoTexture(byte[] photoBytes, int width, int height, UIImage.Orientation imageOrientation)
     {
       if (photoBytes == null || photoBytes.Length == 0)
       {
@@ -703,24 +689,16 @@ namespace NativeCameraCapture
         Texture2D newTexture = null;
         try
         {
-          // LogMemoryUsage("Before creating new photo texture");
-
           // Create the new texture before destroying the old one
-          newTexture = new Texture2D(1, 1, TextureFormat.RGBA32, false)
+          newTexture = new Texture2D(width, height, TextureFormat.BGRA32, false)
           {
             name = "CameraCapture::UpdatePhotoTexture::newTexture"
           };
 
-          // @TODO: Fix
-#if UNITY_EDITOR
+          // Load the raw BGRA data directly
           newTexture.LoadRawTextureData(photoBytes);
-#else
-          // Load the image data
-          if (!newTexture.LoadImage(photoBytes))
-          {
-            throw new InvalidOperationException("Failed to load the image data into the texture");
-          }
-#endif
+          newTexture.Apply();
+
           // If we successfully created and loaded the new texture, destroy the old one
           if (_photoTexture != null)
           {
@@ -736,10 +714,9 @@ namespace NativeCameraCapture
           _photoTexture = newTexture;
 
           Debug.Log($"CameraCapture :: Loaded photo texture - Width: {_photoTexture.width}, Height: {_photoTexture.height}");
-          // LogMemoryUsage("After creating new photo texture");
 
-          var (rotation, scale) = CalculateRotationAndScale(videoOrientation, imageOrientation, isMirrored);
-          OnPhotoCaptured?.Invoke(_photoTexture, rotation, scale, isMirrored);
+          var (rotation, scale) = CalculateRotationAndScale(imageOrientation);
+          OnPhotoCaptured?.Invoke(_photoTexture, rotation, scale);
         }
         catch (Exception e)
         {
@@ -766,14 +743,12 @@ namespace NativeCameraCapture
         }
         finally
         {
-          photoBytes = null;
+          ArrayPool<byte>.Shared.Return(photoBytes);
         }
       }
     }
 
-    private void UpdatePreviewTexture(byte[] frameData, int width, int height,
-        AVCaptureVideoOrientation videoOrientation,
-        UIImage.Orientation imageOrientation, bool isMirrored)
+    private void UpdatePreviewTexture(byte[] frameData, int width, int height, UIImage.Orientation imageOrientation)
     {
       if (_isApplicationQuitting)
       {
@@ -826,11 +801,10 @@ namespace NativeCameraCapture
             Debug.LogError($"CameraCapture :: Error loading preview texture data: {e.Message}");
             throw;
           }
-          frameData = null;
         }
 
-        var (rotation, scale) = CalculateRotationAndScale(videoOrientation, imageOrientation, isMirrored);
-        OnPreviewTextureUpdated?.Invoke(_previewTexture, rotation, scale, isMirrored);
+        var (rotation, scale) = CalculateRotationAndScale(imageOrientation);
+        OnPreviewTextureUpdated?.Invoke(_previewTexture, rotation, scale);
         // LogMemoryUsage("After updating preview texture");
       }
       catch (Exception)
@@ -855,16 +829,18 @@ namespace NativeCameraCapture
         }
         throw;
       }
+      finally
+      {
+        ArrayPool<byte>.Shared.Return(frameData);
+      }
     }
 
-    private (IntPtr baseAddress, int width, int height, int dataLength,
-        AVCaptureVideoOrientation videoOrientation,
-        UIImage.Orientation imageOrientation, bool isMirrored) ParsePhotoData(string pointerData)
+    private (IntPtr baseAddress, int width, int height, int dataLength, UIImage.Orientation imageOrientation) ParsePhotoData(string pointerData)
     {
       string[] parts = pointerData.Split(',');
-      if (parts.Length != 7)
+      if (parts.Length != 5)
       {
-        throw new ArgumentException($"Invalid photo data received. Expected 7 parts, got {parts.Length}");
+        throw new ArgumentException($"Invalid photo data received. Expected 6 parts, got {parts.Length}");
       }
 
       try
@@ -873,11 +849,16 @@ namespace NativeCameraCapture
         int width = int.Parse(parts[1], CultureInfo.InvariantCulture);
         int height = int.Parse(parts[2], CultureInfo.InvariantCulture);
         int dataLength = int.Parse(parts[3], CultureInfo.InvariantCulture);
-        var videoOrientation = (AVCaptureVideoOrientation)int.Parse(parts[4], CultureInfo.InvariantCulture);
-        var imageOrientation = (UIImage.Orientation)int.Parse(parts[5], CultureInfo.InvariantCulture);
-        bool isMirrored = bool.Parse(parts[6]);
+        var imageOrientation = (UIImage.Orientation)int.Parse(parts[4], CultureInfo.InvariantCulture);
+#if DEBUG
+        // Debug.Log($"CameraCapture :: ParsePhotoData :: " +
+        //           $"Base addr : 0x{baseAddress.ToString("X")}, " +
+        //           $"Width: {width}, Height: {height}, " +
+        //           $"DataLength: {dataLength}, " +
+        //           $"ImageOrientation: {imageOrientation}, ");
+#endif
 
-        return (baseAddress, width, height, dataLength, videoOrientation, imageOrientation, isMirrored);
+        return (baseAddress, width, height, dataLength, imageOrientation);
       }
       catch (Exception e)
       {
@@ -885,183 +866,20 @@ namespace NativeCameraCapture
       }
     }
 
-    private (IntPtr baseAddress, int width, int height, int bytesPerRow, int dataLength,
-        AVCaptureVideoOrientation videoOrientation,
-        UIImage.Orientation imageOrientation, bool isMirrored) ParsePreviewFrameData(string pointerData)
-    {
-      string[] parts = pointerData.Split(',');
-      if (parts.Length != 8)
-      {
-        throw new ArgumentException($"Invalid preview frame data received. Expected 8 parts, got {parts.Length}");
-      }
-
-      try
-      {
-        IntPtr baseAddress = new IntPtr(Convert.ToInt64(parts[0], CultureInfo.InvariantCulture));
-        int width = int.Parse(parts[1], CultureInfo.InvariantCulture);
-        int height = int.Parse(parts[2], CultureInfo.InvariantCulture);
-        int bytesPerRow = int.Parse(parts[3], CultureInfo.InvariantCulture);
-        int dataLength = int.Parse(parts[4], CultureInfo.InvariantCulture);
-        var videoOrientation = (AVCaptureVideoOrientation)int.Parse(parts[5], CultureInfo.InvariantCulture);
-        var imageOrientation = (UIImage.Orientation)int.Parse(parts[6], CultureInfo.InvariantCulture);
-        bool isMirrored = bool.Parse(parts[7]);
-
-        // Debug.Log($"CameraCapture :: ParsePreviewFrameData :: " +
-        //           $"Base addr : 0x{baseAddress.ToString("X")}, " +
-        //           $"Width: {width}, Height: {height}, " +
-        //           $"BytesPerRow: {bytesPerRow}, DataLength: {dataLength}, " +
-        //           $"VideoOrientation: {videoOrientation}, ImageOrientation: {imageOrientation}, " +
-        //           $"IsMirrored: {isMirrored}");
-        return (baseAddress, width, height, bytesPerRow, dataLength, videoOrientation, imageOrientation, isMirrored);
-      }
-      catch (Exception e)
-      {
-        throw new ArgumentException($"Error parsing preview frame data: {e.Message}", e);
-      }
-    }
-
+    // Only supports portrait device orientation, @TODO: add support for other orientations
     private (float rotation, Vector3 scale) CalculateRotationAndScale(
-        AVCaptureVideoOrientation videoOrientation,
-        UIImage.Orientation imageOrientation,
-        bool isMirrored)
+    UIImage.Orientation imageOrientation)
     {
-      try
+      if (imageOrientation == UIImage.Orientation.Right || imageOrientation == UIImage.Orientation.Left || imageOrientation == UIImage.Orientation.Up || imageOrientation == UIImage.Orientation.Down)
+      // Right
       {
-        DeviceOrientation orientation = GetDeviceOrientation();
-        // Handle photo capture case
-        float rotationAngle = IsPhotoCapture(imageOrientation) ? GetPhotoRotation(imageOrientation) : CalculatePreviewRotation(orientation, videoOrientation);
-
-        Vector3 scale = CalculateScale(rotationAngle, imageOrientation, isMirrored);
-
-        // Debug.Log($"CameraCapture :: Orientation calculation :: " +
-        //           $"VideoOrientation: {videoOrientation}, " +
-        //           $"DeviceOrientation: {orientation}, " +
-        //           $"ImageOrientation: {imageOrientation}, " +
-        //           $"IsMirrored: {isMirrored}, " +
-        //           $"FinalRotation: {rotationAngle}, " +
-        //           $"FinalScale: {scale}");
-
-        return (rotationAngle, scale);
+        return (90f, new Vector3(-1f, 1f, 1f));
       }
-      catch (Exception e)
-      {
-        Debug.LogError($"CameraCapture :: Error calculating rotation and scale: {e.Message}");
-        return (0, Vector3.one);
-      }
-    }
-
-    private bool IsPhotoCapture(UIImage.Orientation imageOrientation) =>
-      // Photo captures will have a specific image orientation
-      imageOrientation != UIImage.Orientation.Up;
-
-    private float CalculatePreviewRotation(DeviceOrientation orientation, AVCaptureVideoOrientation videoOrientation)
-    {
-      // For preview, we need to consider both device and video orientation
-      return (orientation, videoOrientation) switch
-      {
-        (DeviceOrientation.Portrait, AVCaptureVideoOrientation.LandscapeRight) => -90,
-        (DeviceOrientation.Portrait, AVCaptureVideoOrientation.LandscapeLeft) => 90,
-        (DeviceOrientation.PortraitUpsideDown, AVCaptureVideoOrientation.LandscapeRight) => 90,
-        (DeviceOrientation.PortraitUpsideDown, AVCaptureVideoOrientation.LandscapeLeft) => -90,
-        (DeviceOrientation.PortraitUpsideDown, AVCaptureVideoOrientation.Portrait) => 180,
-        (DeviceOrientation.LandscapeLeft, AVCaptureVideoOrientation.Portrait) => -90,
-        (DeviceOrientation.LandscapeLeft, AVCaptureVideoOrientation.PortraitUpsideDown) => 90,
-        (DeviceOrientation.LandscapeLeft, AVCaptureVideoOrientation.LandscapeRight) => 180,
-        (DeviceOrientation.LandscapeRight, AVCaptureVideoOrientation.Portrait) => 90,
-        (DeviceOrientation.LandscapeRight, AVCaptureVideoOrientation.PortraitUpsideDown) => -90,
-        (DeviceOrientation.LandscapeRight, AVCaptureVideoOrientation.LandscapeLeft) => 180,
-        _ => 0
-      };
-    }
-
-    private float GetPhotoRotation(UIImage.Orientation imageOrientation)
-    {
-      // Convert UIImage.Orientation to degrees
-      // Note: These rotations are clockwise
-      switch (imageOrientation)
-      {
-        case UIImage.Orientation.Up:
-          return 0;
-        case UIImage.Orientation.Down:
-          return 180;
-        case UIImage.Orientation.Left:
-          return 90;  // Changed from 270 to 90
-        case UIImage.Orientation.Right:
-          return 270; // Changed from 90 to 270
-        case UIImage.Orientation.UpMirrored:
-          return 0;
-        case UIImage.Orientation.DownMirrored:
-          return 180;
-        case UIImage.Orientation.LeftMirrored:
-          return 90;  // Changed from 270 to 90
-        case UIImage.Orientation.RightMirrored:
-          return 270; // Changed from 90 to 270
-        default:
-          return 0;
-      }
-    }
-
-    private Vector3 CalculateScale(float rotationAngle, UIImage.Orientation imageOrientation, bool isMirrored)
-    {
-      Vector3 scale = Vector3.one;
-
-      // Check if we're dealing with a photo capture
-      bool isPhotoCapture = IsPhotoCapture(imageOrientation);
-
-      if (isPhotoCapture)
-      {
-        // For photo captures, handle mirroring based on orientation
-        switch (imageOrientation)
-        {
-          case UIImage.Orientation.Up:
-            scale.x = isMirrored ? -1f : 1f;
-            break;
-
-          case UIImage.Orientation.UpMirrored:
-            scale.x = isMirrored ? 1f : -1f;
-            break;
-
-          case UIImage.Orientation.Down:
-            scale.x = isMirrored ? 1f : -1f;
-            scale.y = -1f;
-            break;
-
-          case UIImage.Orientation.DownMirrored:
-            scale.x = isMirrored ? -1f : 1f;
-            scale.y = -1f;
-            break;
-
-          case UIImage.Orientation.Left:
-          case UIImage.Orientation.Right:
-            scale.x = isMirrored ? -1f : 1f;
-            break;
-
-          case UIImage.Orientation.LeftMirrored:
-          case UIImage.Orientation.RightMirrored:
-            scale.x = isMirrored ? 1f : -1f;
-            break;
-        }
-      }
+      // LeftMirrored, etc ...
       else
       {
-        // For preview, use the rotation-based scale calculation
-        bool isVerticalMirrored = imageOrientation == UIImage.Orientation.UpMirrored ||
-                                 imageOrientation == UIImage.Orientation.DownMirrored;
-
-        if (Mathf.Approximately(Mathf.Abs(rotationAngle), 0f) ||
-            Mathf.Approximately(Mathf.Abs(rotationAngle), 180f))
-        {
-          scale.x = isMirrored ? 1f : -1f;
-          scale.y = isVerticalMirrored ? -1f : 1f;
-        }
-        else
-        {
-          scale.y = isMirrored ? 1f : -1f;
-          scale.x = isVerticalMirrored ? -1f : 1f;
-        }
+        return (90f, new Vector3(-1f, -1f, 1f));
       }
-
-      return scale;
     }
 
     private DeviceOrientation GetDeviceOrientation()
@@ -1080,172 +898,119 @@ namespace NativeCameraCapture
       return Input.deviceOrientation;
     }
 
-#pragma warning disable IDE0051 // Remove unused private members
-    private int CalculateRotationAngle(DeviceOrientation orientation, AVCaptureVideoOrientation videoOrientation)
-#pragma warning restore IDE0051 // Remove unused private members
+    #region Support Classes and Interfaces
+
+    internal struct PhotoData
     {
-      // Device orientation to angle mapping
-      int deviceAngle = orientation switch
-      {
-        DeviceOrientation.Portrait => 0,
-        DeviceOrientation.PortraitUpsideDown => 180,
-        DeviceOrientation.LandscapeLeft => 270,
-        DeviceOrientation.LandscapeRight => 90,
-        _ => 0
-      };
-
-      // Video orientation to angle mapping
-      int videoAngle = videoOrientation switch
-      {
-        AVCaptureVideoOrientation.Portrait => 0,
-        AVCaptureVideoOrientation.PortraitUpsideDown => 180,
-        AVCaptureVideoOrientation.LandscapeLeft => 270,
-        AVCaptureVideoOrientation.LandscapeRight => 90,
-        _ => LogAndReturnDefault()
-      };
-
-      // Helper method to log the error and return a default value.
-      static int LogAndReturnDefault()
-      {
-        Debug.LogError("CameraCapture :: CalculateRotationAngle :: Unknown video orientation");
-        return 0;
-      }
-      // Calculate the difference and normalize to -180 to 180 range
-      int rotation = (videoAngle - deviceAngle) % 360;
-      if (rotation > 180) rotation -= 360;
-      if (rotation < -180) rotation += 360;
-
-      return rotation;
+      public IntPtr baseAddress;
+      public int width;
+      public int height;
+      public int dataLength;
+      public UIImage.Orientation imageOrientation;
     }
 
-  }
+    public interface ICameraService
+    {
+      void InitializeCamera(string gameObjectName);
+      void StartPreview();
+      void PausePreview();
+      void ResumePreview();
+      void TakePhoto();
+      void SwitchCamera();
+      void SetFlashMode(int mode);
+      void SetColorTemperature(float temperature);
+      void SetWhiteBalanceMode(int mode);
+      void StopCamera();
+      // void FreePhotoData(IntPtr pointer);
+      void MarkPreviewBufferAsRead(IntPtr pointer);
+      void MarkPhotoBufferAsRead(IntPtr pointer);
+    }
 
-  #region Support Classes and Interfaces
-
-  internal struct PhotoData
-  {
-    public IntPtr baseAddress;
-    public int width;
-    public int height;
-    public int dataLength;
-    public AVCaptureVideoOrientation videoOrientation;
-    public UIImage.Orientation imageOrientation;
-    public bool isMirrored;
-  }
-
-  internal struct PreviewPhotoData
-  {
-    public IntPtr baseAddress;
-    public int width;
-    public int height;
-    public int bytesPerRow;
-    public int dataLength;
-    public AVCaptureVideoOrientation videoOrientation;
-    public UIImage.Orientation imageOrientation;
-    public bool isMirrored;
-  }
-
-  public interface ICameraService
-  {
-    void InitializeCamera(string gameObjectName);
-    void StartPreview();
-    void PausePreview();
-    void ResumePreview();
-    void TakePhoto();
-    void SwitchCamera();
-    void SetFlashMode(int mode);
-    void SetColorTemperature(float temperature);
-    void SetWhiteBalanceMode(int mode);
-    void StopCamera();
-    // void FreePhotoData(IntPtr pointer);
-    void MarkPreviewBufferAsRead(IntPtr pointer);
-    void MarkPhotoBufferAsRead(IntPtr pointer);
-  }
-
-  public class UnityEditorCameraService : ICameraService
-  {
-    public void InitializeCamera(string gameObjectName) => throw new NotImplementedException();
-    public void PausePreview() => throw new NotImplementedException();
-    public void ResumePreview() => throw new NotImplementedException();
-    public void SetFlashMode(int mode) => throw new NotImplementedException();
-    public void SetColorTemperature(float temperature) => throw new NotImplementedException();
-    public void SetWhiteBalanceMode(int mode) => throw new NotImplementedException();
-    public void StartPreview() => throw new NotImplementedException();
-    public void StopCamera() => throw new NotImplementedException();
-    public void SwitchCamera() => throw new NotImplementedException();
-    public void TakePhoto() => throw new NotImplementedException();
-    // public void FreePhotoData(IntPtr pointer) => throw new NotImplementedException();
-    public void MarkPreviewBufferAsRead(IntPtr pointer) => throw new NotImplementedException();
-    public void MarkPhotoBufferAsRead(IntPtr pointer) => throw new NotImplementedException();
-  }
+    public class UnityEditorCameraService : ICameraService
+    {
+      public void InitializeCamera(string gameObjectName) => throw new NotImplementedException();
+      public void PausePreview() => throw new NotImplementedException();
+      public void ResumePreview() => throw new NotImplementedException();
+      public void SetFlashMode(int mode) => throw new NotImplementedException();
+      public void SetColorTemperature(float temperature) => throw new NotImplementedException();
+      public void SetWhiteBalanceMode(int mode) => throw new NotImplementedException();
+      public void StartPreview() => throw new NotImplementedException();
+      public void StopCamera() => throw new NotImplementedException();
+      public void SwitchCamera() => throw new NotImplementedException();
+      public void TakePhoto() => throw new NotImplementedException();
+      // public void FreePhotoData(IntPtr pointer) => throw new NotImplementedException();
+      public void MarkPreviewBufferAsRead(IntPtr pointer) => throw new NotImplementedException();
+      public void MarkPhotoBufferAsRead(IntPtr pointer) => throw new NotImplementedException();
+    }
 
 #if UNITY_IOS
-  public class IosCameraService : ICameraService
-  {
-    [DllImport("__Internal")]
-    private static extern void UnityBridge_setup();
-    [DllImport("__Internal")]
-    private static extern void _InitializeCamera(string gameObjectName);
-    [DllImport("__Internal")]
-    private static extern void _StartPreview();
-    [DllImport("__Internal")]
-    private static extern void _PausePreview();
-    [DllImport("__Internal")]
-    private static extern void _ResumePreview();
-    [DllImport("__Internal")]
-    private static extern void _TakePhoto();
-    // [DllImport("__Internal")]
-    // private static extern void _FreePhotoData(IntPtr pointer);
-    [DllImport("__Internal")]
-    private static extern void _SwitchCamera();
-    [DllImport("__Internal")]
-    private static extern void _SetFlashMode(int mode);
-    [DllImport("__Internal")]
-    private static extern void _SetWhiteBalanceMode(int mode);
-    [DllImport("__Internal")]
-    private static extern void _SetColorTemperature(float temperature);
-    [DllImport("__Internal")]
-    private static extern void _StopCamera();
-
-    public IosCameraService()
+    public class IosCameraService : ICameraService
     {
+      [DllImport("__Internal")]
+      private static extern void UnityBridge_setup();
+      [DllImport("__Internal")]
+      private static extern void _InitializeCamera(string gameObjectName);
+      [DllImport("__Internal")]
+      private static extern void _StartPreview();
+      [DllImport("__Internal")]
+      private static extern void _PausePreview();
+      [DllImport("__Internal")]
+      private static extern void _ResumePreview();
+      [DllImport("__Internal")]
+      private static extern void _TakePhoto();
+      // [DllImport("__Internal")]
+      // private static extern void _FreePhotoData(IntPtr pointer);
+      [DllImport("__Internal")]
+      private static extern void _SwitchCamera();
+      [DllImport("__Internal")]
+      private static extern void _SetFlashMode(int mode);
+      [DllImport("__Internal")]
+      private static extern void _SetWhiteBalanceMode(int mode);
+      [DllImport("__Internal")]
+      private static extern void _SetColorTemperature(float temperature);
+      [DllImport("__Internal")]
+      private static extern void _StopCamera();
+
+      public IosCameraService()
+      {
 #if !UNITY_EDITOR
       UnityBridge_setup();
 #endif
-    }
+      }
 
-    public void InitializeCamera(string gameObjectName)
-    {
+      public void InitializeCamera(string gameObjectName)
+      {
 #if !UNITY_EDITOR
       _InitializeCamera(gameObjectName);
 #endif
-    }
-    public void StartPreview()
-    {
+      }
+      public void StartPreview()
+      {
 #if !UNITY_EDITOR
       _StartPreview();
 #endif
+      }
+      public void PausePreview() => _PausePreview();
+      public void ResumePreview() => _ResumePreview();
+      public void TakePhoto() => _TakePhoto();
+      public void SwitchCamera() => _SwitchCamera();
+      public void SetFlashMode(int mode) => _SetFlashMode(mode);
+      public void SetWhiteBalanceMode(int mode) => _SetWhiteBalanceMode(mode);
+      public void SetColorTemperature(float temperature) => _SetColorTemperature(temperature);
+      public void StopCamera() => _StopCamera();
+      // public void FreePhotoData(IntPtr pointer) => _FreePhotoData(pointer); [DllImport("__Internal")]
+      [DllImport("__Internal")]
+      private static extern void _MarkPreviewBufferAsRead(IntPtr pointer);
+
+      [DllImport("__Internal")]
+      private static extern void _MarkPhotoBufferAsRead(IntPtr pointer);
+
+      public void MarkPreviewBufferAsRead(IntPtr pointer) => _MarkPreviewBufferAsRead(pointer);
+
+      public void MarkPhotoBufferAsRead(IntPtr pointer) => _MarkPhotoBufferAsRead(pointer);
     }
-    public void PausePreview() => _PausePreview();
-    public void ResumePreview() => _ResumePreview();
-    public void TakePhoto() => _TakePhoto();
-    public void SwitchCamera() => _SwitchCamera();
-    public void SetFlashMode(int mode) => _SetFlashMode(mode);
-    public void SetWhiteBalanceMode(int mode) => _SetWhiteBalanceMode(mode);
-    public void SetColorTemperature(float temperature) => _SetColorTemperature(temperature);
-    public void StopCamera() => _StopCamera();
-    // public void FreePhotoData(IntPtr pointer) => _FreePhotoData(pointer); [DllImport("__Internal")]
-    [DllImport("__Internal")]
-    private static extern void _MarkPreviewBufferAsRead(IntPtr pointer);
-
-    [DllImport("__Internal")]
-    private static extern void _MarkPhotoBufferAsRead(IntPtr pointer);
-
-    public void MarkPreviewBufferAsRead(IntPtr pointer) => _MarkPreviewBufferAsRead(pointer);
-
-    public void MarkPhotoBufferAsRead(IntPtr pointer) => _MarkPhotoBufferAsRead(pointer);
-  }
 #endif
 
-  #endregion
+    #endregion
+  }
 }

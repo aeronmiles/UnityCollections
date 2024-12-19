@@ -1,6 +1,6 @@
 import Foundation
 
-/// A thread-safe memory buffer pool for efficient buffer reuse in camera operations
+/// @TODO: A thread-safe memory buffer pool for efficient buffer reuse in camera operations
 final class BufferPool {
     /// Represents a reusable buffer in the pool
     private struct PooledBuffer {
