@@ -164,9 +164,9 @@ public class RenderTargetManager : MonoSingletonScene<RenderTargetManager>
       PreRender();
       var result = RenderToTexture(out rtOut);
       PostRender();
-#if UNITY_EDITOR
-      Debug.Log($"RenderTargetBase :: {id} rendered: {result}");
-#endif
+// #if UNITY_EDITOR
+//       Debug.Log($"RenderTargetBase :: {id} rendered: {result}");
+// #endif
       _lastFrame = Time.frameCount;
       return result;
     }
