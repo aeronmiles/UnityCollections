@@ -1,51 +1,37 @@
-using System;
-using System.Threading;
+using System.Collections.Concurrent;
+using System.Diagnostics.CodeAnalysis;
 
 public class LockFreeRingBuffer<T>
 {
-    private readonly T[] buffer;
-    private int head;
-    private int tail;
-    private readonly int capacity;
+  private readonly ConcurrentQueue<T> _queue = new ConcurrentQueue<T>();
+  private readonly int _capacity;
 
-    public LockFreeRingBuffer(int capacity)
+  public LockFreeRingBuffer(int capacity)
+  {
+    if (capacity <= 0)
     {
-        this.capacity = capacity;
-        buffer = new T[capacity];
-        head = 0;
-        tail = 0;
+      throw new System.ArgumentOutOfRangeException(nameof(capacity), "Capacity must be greater than zero.");
     }
+    _capacity = capacity;
+  }
 
-    public bool TryEnqueue(T item)
+  public bool TryEnqueue(T item)
+  {
+    // Spin and remove elements until size is less than capacity.
+    while (_queue.Count >= _capacity)
     {
-        int currentTail = tail;
-        int nextTail = (currentTail + 1) % capacity;
+      if (_queue.TryDequeue(out _)) continue;
 
-        if (nextTail == head)
-        {
-          
-            // Buffer is full
-            return false;
-        }
+      //If we are here, it means a different thread has already dequeued.
+      //This is fine. Just loop again to make sure we are under the capacity.
 
-        buffer[currentTail] = item;
-        Interlocked.Exchange(ref tail, nextTail);
-        return true;
     }
+    _queue.Enqueue(item);
+    return true;
+  }
 
-    public bool TryDequeue(out T item)
-    {
-        int currentHead = head;
-
-        if (currentHead == tail)
-        {
-            // Buffer is empty
-            item = default(T);
-            return false;
-        }
-
-        item = buffer[currentHead];
-        Interlocked.Exchange(ref head, (currentHead + 1) % capacity);
-        return true;
-    }
+  public bool TryDequeue([MaybeNullWhen(false)] out T item)
+  {
+    return _queue.TryDequeue(out item);
+  }
 }
