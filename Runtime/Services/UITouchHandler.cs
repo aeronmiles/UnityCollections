@@ -9,7 +9,7 @@ public class UITouchHandler : MonoSingleton<UITouchHandler>
   // Optional parameters for touch mapping
   public bool shouldInvertY = true;
   public bool useDisplayHeight = true;
-  public float coolOffPeriod { get; private set; } = 0.15f;
+  public float coolOffPeriod { get; private set; } = 0.5f;
   private float _lastInteractionCoolOffTime = 0f;
   public float lastInteractionCoolOffTime
   {
@@ -42,7 +42,7 @@ public class UITouchHandler : MonoSingleton<UITouchHandler>
     // Guard against multiple interactions
     if ((Time.time - lastInteractionCoolOffTime) < coolOffPeriod)
     {
-      // Debug.LogWarning("UITouchHandler :: Interaction cool-off period");
+      Debug.LogWarning("UITouchHandler :: Interaction cool-off period");
       return false;
     }
     lastInteractionCoolOffTime = Time.time;
