@@ -11,7 +11,8 @@ public class LocalizationManager : MonoSingleton<LocalizationManager>
     NULL,
     EN_GB,
     EN_US,
-    ES
+    ES,
+    DE
   }
 
   public static List<Language> _allLanguages;
@@ -57,6 +58,8 @@ public class LocalizationManager : MonoSingleton<LocalizationManager>
         return "English US";
       case Language.ES:
         return "Español";
+      case Language.DE:
+        return "Deutsch";
       default:
         Debug.LogWarning($"LocalizationManager::GetReadableLanguage: Invalid language set: {CurrentLanguage}");
         return "NULL";
