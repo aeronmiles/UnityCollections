@@ -167,18 +167,18 @@ public class LocalizationManager : MonoSingleton<LocalizationManager>
   {
     locales = locales.ToLower();
     int count = 0;
-    bool hasExclusion = locales.Contains("!");
+    // bool hasExclusion = locales.Contains("!");
     foreach (var locale in AllLanguageLocales)
     {
       if (locales.Contains(locale.ToLower()))
       {
         count++;
       }
-      if (hasExclusion && count > 1)
-      {
-        Debug.LogError($"LocalizationManager::ValidateLocalesString: Invalid locales string: {locales}, exclusion supports a single locale");
-        return false;
-      }
+      // if (hasExclusion && count > 1)
+      // {
+      //   Debug.LogError($"LocalizationManager::ValidateLocalesString: Invalid locales string: {locales}, exclusion supports a single locale");
+      //   return false;
+      // }
     }
 
     return true;
