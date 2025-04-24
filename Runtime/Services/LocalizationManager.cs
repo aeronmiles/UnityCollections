@@ -12,7 +12,8 @@ public class LocalizationManager : MonoSingleton<LocalizationManager>
     EN_GB,
     EN_US,
     ES,
-    DE
+    DE,
+    FI
   }
 
   public static List<Language> _allLanguages;

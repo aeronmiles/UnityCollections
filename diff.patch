@@ -1,0 +1,14 @@
+diff --git a/Runtime/Services/LocalizationManager.cs b/Runtime/Services/LocalizationManager.cs
+index d40a0d3..3cddb9c 100644
+--- a/Runtime/Services/LocalizationManager.cs
++++ b/Runtime/Services/LocalizationManager.cs
+@@ -12,7 +12,8 @@ public class LocalizationManager : MonoSingleton<LocalizationManager>
+     EN_GB,
+     EN_US,
+     ES,
+-    DE
++    DE,
++    SE
+   }
+ 
+   public static List<Language> _allLanguages;
