@@ -61,6 +61,8 @@ public class LocalizationManager : MonoSingleton<LocalizationManager>
         return "Español";
       case Language.DE:
         return "Deutsch";
+      case Language.FI:
+        return "Suomi";
       default:
         Debug.LogWarning($"LocalizationManager::GetReadableLanguage: Invalid language set: {CurrentLanguage}");
         return "NULL";
