@@ -8,11 +8,12 @@ public class LocalizationManager : MonoSingleton<LocalizationManager>
 
   public enum Language
   {
-    EN_GB,
-    EN_US,
-    ES,
-    DE,
-    FI
+    EN_GB = 0,
+    EN_US = 1,
+    ES = 2,
+    DE = 3,
+    FI = 4,
+    NULL = -1,
   }
 
   public static List<Language> _allLanguages;
