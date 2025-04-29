@@ -8,7 +8,6 @@ public class LocalizationManager : MonoSingleton<LocalizationManager>
 
   public enum Language
   {
-    NULL,
     EN_GB,
     EN_US,
     ES,
