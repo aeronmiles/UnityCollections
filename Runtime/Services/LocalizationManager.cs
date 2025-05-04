@@ -70,6 +70,7 @@ public class LocalizationManager : MonoSingleton<LocalizationManager>
   }
 
   private static readonly List<Language> _SupportedLanguages = new List<Language>();
+  private static readonly List<string> _SupportedLanguageLocales = new List<string>();
 
   private static readonly string _PlayerPrefsLocaleKey = "LocalizationManager::_PlayerPrefsLocaleKey";
 
@@ -86,6 +87,15 @@ public class LocalizationManager : MonoSingleton<LocalizationManager>
   {
     _SupportedLanguages.Clear();
     _SupportedLanguages.AddRange(languages);
+    _SupportedLanguageLocales.Clear();
+    foreach (var lang in languages)
+    {
+      _SupportedLanguageLocales.Add(lang.ToString());
+    }
+    if (!PlayerPrefs.HasKey(_PlayerPrefsLocaleKey))
+    {
+      PlayerPrefs.SetString(_PlayerPrefsLocaleKey, languages[0].ToString());
+    }
   }
 
   public static void SetLanguage(Language lang)
@@ -114,11 +124,26 @@ public class LocalizationManager : MonoSingleton<LocalizationManager>
 
   private static string GetLocale()
   {
+    if (_SupportedLanguageLocales == null || _SupportedLanguageLocales.Count == 0)
+    {
+      Debug.LogWarning("LocalizationManager::GetLocale: No supported languages set");
+      return string.Empty;
+    }
+
     var locale = PlayerPrefs.GetString(_PlayerPrefsLocaleKey);
     // Migrate old locale identifier for UK English
     if (locale == "EN")
     {
       locale = "EN_GB";
+      PlayerPrefs.SetString(_PlayerPrefsLocaleKey, locale);
+      PlayerPrefs.Save();
+    }
+    // Ensure locale is set to a supported language
+    if (locale == string.Empty || !_SupportedLanguageLocales.Contains(locale))
+    {
+      Debug.LogWarning($"LocalizationManager::GetLocale: Invalid locale {locale}, defaulting to {_SupportedLanguageLocales[0]}");
+      // Set to first supported language
+      locale = _SupportedLanguageLocales[0];
       PlayerPrefs.SetString(_PlayerPrefsLocaleKey, locale);
       PlayerPrefs.Save();
     }
