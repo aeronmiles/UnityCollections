@@ -16,7 +16,7 @@ public class Analytics : MonoSingleton<Analytics>
   private float _lastSaveTime;
   [SerializeField] private bool _sendEventsToLogger = true;
 
-  private long GetCurrentTimeMilliseconds() => DateTime.Now.ToUnixTimeMilliseconds();
+  private long GetCurrentTimeMilliseconds() => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
   private void Start()
   {

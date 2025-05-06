@@ -124,7 +124,7 @@ public class LocalizationManager : MonoSingleton<LocalizationManager>
 
   private static string GetLocale()
   {
-    if (_SupportedLanguageLocales == null || _SupportedLanguageLocales.Count == 0)
+    if (!PlayerPrefs.HasKey(_PlayerPrefsLocaleKey) && (_SupportedLanguageLocales == null || _SupportedLanguageLocales.Count == 0))
     {
       Debug.LogWarning("LocalizationManager::GetLocale: No supported languages set");
       return string.Empty;

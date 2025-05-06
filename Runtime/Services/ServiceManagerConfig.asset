@@ -12,7 +12,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bb005236f36b644bb8a954648f8ef387, type: 3}
   m_Name: ServiceManagerConfig
   m_EditorClassIdentifier: 
+  _enableUnityLogInterception: 1
   _enableConsoleLogging: 1
   _enableFileLogging: 1
   _initializationTimeout: 30
   _serviceInitializationRetryCount: 3
+  _logType: 3

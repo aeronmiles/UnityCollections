@@ -9,8 +9,8 @@ public static class SetExecutionOrders
   static SetExecutionOrders()
   {
     // AM.Unity.Collections
-    SetExecutionOrder("ServiceManager", -95);
-    SetExecutionOrder("Main", -90);
+    SetExecutionOrder("ServiceManager", -1200);
+    SetExecutionOrder("Main", -1150);
   }
 
   private static void SetExecutionOrder(string scriptName, int order)
