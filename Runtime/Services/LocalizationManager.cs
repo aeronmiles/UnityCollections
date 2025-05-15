@@ -8,12 +8,17 @@ public class LocalizationManager : MonoSingleton<LocalizationManager>
 
   public enum Language
   {
-    NULL,
-    EN_GB,
-    EN_US,
-    ES,
-    DE,
-    FI
+    NULL,    // Represents no language selected or an error state
+    EN_GB,   // English (United Kingdom)
+    EN_US,   // English (United States)
+    ES,      // Spanish
+    DE,      // German
+    FI,      // Finnish
+    AUT,     // Austria (Likely German - Austria)
+    CH,      // Switzerland
+    IT,      // Italy
+    BENELUX, // Belgium, Netherlands, Luxembourg (Regional Grouping)
+    EN_CA    // English (Canada)
   }
 
   public static List<Language> _allLanguages;
@@ -53,19 +58,31 @@ public class LocalizationManager : MonoSingleton<LocalizationManager>
   {
     switch (lang)
     {
+      case Language.NULL:
+        return "Not Set"; // Or "None", "Undefined"
       case Language.EN_GB:
-        return "English UK";
+        return "English (UK)"; // Made slightly more specific
       case Language.EN_US:
-        return "English US";
+        return "English (US)"; // Made slightly more specific
       case Language.ES:
         return "Español";
       case Language.DE:
         return "Deutsch";
       case Language.FI:
         return "Suomi";
+      case Language.AUT:
+        return "Österreich"; // German (Austria)
+      case Language.CH:
+        return "Switzerland"; // General for Switzerland
+      case Language.IT:
+        return "Italiano";
+      case Language.BENELUX:
+        return "Benelux"; // Regional, as in your original
+      case Language.EN_CA:
+        return "English (Canada)";
       default:
         Debug.LogWarning($"LocalizationManager::GetReadableLanguage: Invalid language set: {CurrentLanguage}");
-        return "NULL";
+        return "Not Set";
     }
   }
 
