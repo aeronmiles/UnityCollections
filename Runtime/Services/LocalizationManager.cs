@@ -97,6 +97,7 @@ public class LocalizationManager : MonoSingleton<LocalizationManager>
     {
       SetSupportedLanguages(AllLanguages);
     }
+    SetLanguage(CurrentLanguage == Language.NULL ? Language.EN_GB : CurrentLanguage);
   }
 
   public static void SetSupportedLanguages(List<Language> languages)
