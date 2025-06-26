@@ -850,13 +850,6 @@ namespace NativeCameraCapture
         int height = int.Parse(parts[2], CultureInfo.InvariantCulture);
         int dataLength = int.Parse(parts[3], CultureInfo.InvariantCulture);
         var imageOrientation = (UIImage.Orientation)int.Parse(parts[4], CultureInfo.InvariantCulture);
-#if DEBUG
-        // Debug.Log($"CameraCapture :: ParsePhotoData :: " +
-        //           $"Base addr : 0x{baseAddress.ToString("X")}, " +
-        //           $"Width: {width}, Height: {height}, " +
-        //           $"DataLength: {dataLength}, " +
-        //           $"ImageOrientation: {imageOrientation}, ");
-#endif
 
         return (baseAddress, width, height, dataLength, imageOrientation);
       }
@@ -873,12 +866,12 @@ namespace NativeCameraCapture
       if (imageOrientation == UIImage.Orientation.Right || imageOrientation == UIImage.Orientation.Left || imageOrientation == UIImage.Orientation.Up || imageOrientation == UIImage.Orientation.Down)
       // Right
       {
-        return (90f, new Vector3(-1f, 1f, 1f));
+        return (0f, new Vector3(-1f, 1f, 1f));
       }
       // LeftMirrored, etc ...
       else
       {
-        return (90f, new Vector3(-1f, -1f, 1f));
+        return (0f, new Vector3(-1f, -1f, 1f));
       }
     }
 
