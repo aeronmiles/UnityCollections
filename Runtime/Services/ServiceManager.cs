@@ -60,6 +60,8 @@ public interface IShutdownable
 // Logger abstraction (DIP)
 public interface IServiceLogger
 {
+  public bool AddHandler(ILogHandler handler);
+  public bool RemoveHandler(ILogHandler handler);
   void Log(string tag, object message, UnityEngine.Object caller);
   void LogDebug(string tag, object message, UnityEngine.Object caller);
   void LogWarning(string tag, object message, UnityEngine.Object caller);
@@ -70,6 +72,8 @@ public interface IServiceLogger
 // Configuration abstraction (DIP)
 public interface IServiceConfiguration
 {
+  LogType logType { get; }
+  bool enableUnityLogInterception { get; }
   bool enableConsoleLogging { get; }
   bool enableFileLogging { get; }
   float initializationTimeout { get; }
@@ -424,4 +428,7 @@ public class UnityLogger : IServiceLogger
       Debug.LogError(errorMessage, caller);
     }
   }
+
+  public bool AddHandler(ILogHandler handler) => throw new NotImplementedException();
+  public bool RemoveHandler(ILogHandler handler) => throw new NotImplementedException();
 }
