@@ -866,12 +866,22 @@ namespace NativeCameraCapture
       if (imageOrientation == UIImage.Orientation.Right || imageOrientation == UIImage.Orientation.Left || imageOrientation == UIImage.Orientation.Up || imageOrientation == UIImage.Orientation.Down)
       // Right
       {
+#if UNITY_EDITOR
         return (0f, new Vector3(-1f, 1f, 1f));
+#else
+        // Ipad portrait mode 90f
+        return (90f, new Vector3(-1f, 1f, 1f));
+#endif
       }
       // LeftMirrored, etc ...
       else
       {
+#if UNITY_EDITOR
         return (0f, new Vector3(-1f, -1f, 1f));
+#else
+        // Ipad portrait mode 90f
+        return (90f, new Vector3(-1f, -1f, 1f));
+#endif
       }
     }
 
