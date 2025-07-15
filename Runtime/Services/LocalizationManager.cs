@@ -1,217 +1,226 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
+using System.Linq;
+using System.Reflection;
 using UnityEngine;
 
-public class LocalizationManager : MonoSingleton<LocalizationManager>
+/// <summary>
+/// The non-generic base class that provides the global singleton instance
+/// and defines the public API contract for easy access from any script.
+/// </summary>
+public abstract class ILocalizationManager<TEnum> : MonoBehaviour
 {
-  public static event Action<Language> OnLanguageChanged;
+  /// <summary>
+  /// A non-generic event that fires when the language changes, providing the new locale string.
+  /// </summary>
+  public event Action<TEnum> OnLanguageChanged;
+  /// <summary>
+  /// Helper method for child classes to raise the non-generic event.
+  /// </summary>
+  protected void RaiseOnLanguageChanged(TEnum language) => OnLanguageChanged?.Invoke(language);
 
-  public enum Language
-  {
-    NULL,    // Represents no language selected or an error state
-    EN_GB,   // English (United Kingdom)
-    EN_US,   // English (United States)
-    ES,      // Spanish
-    DE,      // German
-    FI,      // Finnish
-    AUT,     // Austria (Likely German - Austria)
-    CH,      // Switzerland
-    IT,      // Italy
-    BENELUX, // Belgium, Netherlands, Luxembourg (Regional Grouping)
-    EN_CA    // English (Canada)
-  }
+  #region Abstract Non-Generic API
+  public abstract string CurrentLocale { get; }
+  public abstract TEnum CurrentLanguage { get; }
+  public abstract string CurrentLanguageReadable { get; }
+  public abstract List<string> SupportedLocales { get; }
+  public abstract List<string> SupportedLanguagesReadable { get; }
+  public abstract void SetLanguage(string locale);
+  public abstract void SetSupportedLanguages(TEnum defaultLang, IEnumerable<TEnum> supportedLocales);
+  public abstract bool ContainsCurrentLanguage(string locales);
+  #endregion
 
-  public static List<Language> _allLanguages;
-  public static List<Language> AllLanguages
-  {
-    get
-    {
-      if (_allLanguages == null)
-      {
-        _allLanguages = new List<Language>();
-        foreach (var language in Enum.GetValues(typeof(Language)))
-        {
-          _allLanguages.Add((Language)language);
-        }
-      }
-      return _allLanguages;
-    }
-  }
-  public static List<string> _allLanguageLocales;
-  private static List<string> AllLanguageLocales
-  {
-    get
-    {
-      if (_allLanguageLocales == null)
-      {
-        _allLanguageLocales = new List<string>();
-        foreach (var language in Enum.GetValues(typeof(Language)))
-        {
-          _allLanguageLocales.Add(language.ToString().ToLower());
-        }
-      }
-      return _allLanguageLocales;
-    }
-  }
+  protected abstract string LoadLocale();
+  protected abstract void SaveLocale(string locale);
+}
 
-  public static string LanguageAsReadable(Language lang)
-  {
-    switch (lang)
-    {
-      case Language.NULL:
-        return "Not Set"; // Or "None", "Undefined"
-      case Language.EN_GB:
-        return "English (UK)"; // Made slightly more specific
-      case Language.EN_US:
-        return "English (US)"; // Made slightly more specific
-      case Language.ES:
-        return "Español";
-      case Language.DE:
-        return "Deutsch";
-      case Language.FI:
-        return "Suomi";
-      case Language.AUT:
-        return "Österreich"; // German (Austria)
-      case Language.CH:
-        return "Switzerland"; // General for Switzerland
-      case Language.IT:
-        return "Italiano";
-      case Language.BENELUX:
-        return "Benelux"; // Regional, as in your original
-      case Language.EN_CA:
-        return "English (Canada)";
-      default:
-        Debug.LogWarning($"LocalizationManager::GetReadableLanguage: Invalid language set: {CurrentLanguage}");
-        return "Not Set";
-    }
-  }
-
-  private static readonly List<Language> _SupportedLanguages = new List<Language>();
-
+/// <summary>
+/// The generic class containing all localization logic. It initializes itself based on the
+/// provided enum type 'TEnum' and exposes a complete API for language management.
+/// </summary>
+public class LocalizationManagerBase<TEnum> : ILocalizationManager<TEnum> where TEnum : Enum
+{
+  // --- Private Fields ---
+  private readonly Dictionary<TEnum, string> _enumToReadable = new Dictionary<TEnum, string>();
+  private readonly Dictionary<string, TEnum> _localeToEnum = new Dictionary<string, TEnum>();
+  private readonly Dictionary<string, TEnum> _readableNameToEnum = new Dictionary<string, TEnum>();
+  protected TEnum defaultLanguage;
+  private Dictionary<string, string> _installedLanguages = new Dictionary<string, string>();
+  private Dictionary<string, string> _activeLanguageDefinitions = new Dictionary<string, string>();
   private static readonly string _PlayerPrefsLocaleKey = "LocalizationManager::_PlayerPrefsLocaleKey";
+  private bool _isInitialized = false;
 
-  private new void Awake()
+  protected override string LoadLocale() => PlayerPrefs.GetString(_PlayerPrefsLocaleKey, defaultLanguage.ToString());
+  protected override void SaveLocale(string locale) => PlayerPrefs.SetString(_PlayerPrefsLocaleKey, locale);
+
+  #region Initialization
+
+  /// <summary>
+  /// Discovers all possible languages from the enum via reflection.
+  /// This should only run once.
+  /// </summary>
+  private void InitializeAvailableLanguages()
   {
-    base.Awake();
-    if (_SupportedLanguages.Count == 0)
+    if (_isInitialized) return;
+
+    var languageType = typeof(TEnum);
+    var values = Enum.GetValues(languageType);
+    _installedLanguages = new Dictionary<string, string>();
+    allLanguages = new List<TEnum>();
+
+    foreach (var value in values)
     {
-      SetSupportedLanguages(AllLanguages);
+      var enumValue = (TEnum)value;
+      allLanguages.Add(enumValue);
+
+      var field = languageType.GetField(value.ToString());
+      var descriptionAttribute = field.GetCustomAttribute<DescriptionAttribute>();
+
+      if (descriptionAttribute != null)
+      {
+        var readable = descriptionAttribute.Description;
+        var locale = value.ToString();
+
+        _enumToReadable[enumValue] = readable;
+        _localeToEnum[locale] = enumValue;
+        _readableNameToEnum[readable] = enumValue;
+        _installedLanguages[locale] = readable;
+      }
+      else
+      {
+        Debug.LogError($"All Language Enum values must have a Description attribute. e.g. [Description(\"English (UK)\")] on value {value}");
+      }
+    }
+
+    _isInitialized = true;
+    Debug.Log($"LocalizationManager discovered {_installedLanguages.Count} total languages.");
+  }
+  #endregion
+
+  #region Public API
+
+  // --- Properties ---
+  public List<TEnum> allLanguages { get; private set; } = new List<TEnum>();
+  public override TEnum CurrentLanguage => LocaleAsLanguage(LoadLocale());
+  public override string CurrentLocale => LoadLocale();
+  public override string CurrentLanguageReadable => LanguageAsReadable(CurrentLanguage);
+  public override List<string> SupportedLocales => _activeLanguageDefinitions.Keys.ToList();
+  public override List<string> SupportedLanguagesReadable => _activeLanguageDefinitions.Values.ToList();
+
+  // --- Language Conversion ---
+  public string LanguageAsReadable(TEnum lang) => _enumToReadable.TryGetValue(lang, out var readable) ? readable : null;
+  public TEnum ReadableAsLanguage(string langName) => _readableNameToEnum.TryGetValue(langName, out var lang) ? lang : default;
+  public TEnum LocaleAsLanguage(string locale) => _localeToEnum.TryGetValue(locale, out var lang) ? lang : default;
+  public string LocaleAsReadable(string locale) => LanguageAsReadable(LocaleAsLanguage(locale));
+
+  // --- Language Management ---
+  public override void SetSupportedLanguages(TEnum defaultLang, IEnumerable<TEnum> supportedLanguages)
+  {
+    // Ensure initialization has run (it should have from Awake, but this is a safeguard).
+    if (!_isInitialized)
+    {
+      InitializeAvailableLanguages();
+    }
+
+    defaultLanguage = defaultLang;
+    var newSupported = new Dictionary<string, string>();
+
+    // Use a HashSet to automatically handle duplicates like `Language.DE` in your Main.cs
+    var supportedLanguageSet = new HashSet<TEnum>(supportedLanguages);
+
+    foreach (var langEnum in supportedLanguageSet)
+    {
+      string locale = GetLocale(langEnum);
+      if (_installedLanguages.TryGetValue(locale, out var readableName))
+      {
+        newSupported.Add(locale, readableName);
+      }
+    }
+
+    _activeLanguageDefinitions = newSupported;
+
+    // If the currently saved language isn't in the new list, switch to the default.
+    string currentLocale = LoadLocale();
+    if (!_activeLanguageDefinitions.ContainsKey(currentLocale))
+    {
+      SetLanguage(defaultLanguage);
+    }
+    else
+    {
+      // If the language is still valid, raise the event anyway to notify listeners
+      // (like a UI dropdown) that the list of supported languages has been updated.
+      RaiseOnLanguageChanged(LocaleAsLanguage(currentLocale));
     }
   }
 
-  public static void SetSupportedLanguages(List<Language> languages)
-  {
-    _SupportedLanguages.Clear();
-    _SupportedLanguages.AddRange(languages);
-  }
+  public void SetLanguage(TEnum lang) => SetLanguageByLocale(GetLocale(lang));
 
-  public static void SetLanguage(Language lang)
+  public override void SetLanguage(string langIdentifier)
   {
-    PlayerPrefs.SetString(_PlayerPrefsLocaleKey, lang.ToString());
-    Debug.Log($"LocalizationManager::SetLanguage: Language set to {lang}");
-    OnLanguageChanged?.Invoke(lang);
-  }
+    if (string.IsNullOrEmpty(langIdentifier)) return;
 
-  public static void SetLanguage(string lang)
-  {
-    var newLang = LocaleAsLanguage(lang);
-    if (newLang != Language.NULL)
+    // First, try to match by locale (e.g., "EN_GB")
+    if (_localeToEnum.ContainsKey(langIdentifier))
     {
-      SetLanguage(newLang);
+      SetLanguageByLocale(langIdentifier);
       return;
     }
-    newLang = ReadableAsLanguage(lang);
-    if (newLang != Language.NULL)
+
+    // Next, try to match by readable name (e.g., "English (UK)")
+    if (_readableNameToEnum.TryGetValue(langIdentifier, out TEnum lang))
     {
-      SetLanguage(newLang);
+      SetLanguage(lang);
       return;
     }
-    Debug.LogError($"LocalizationManager::SetLanguage: Invalid language identifier {lang}");
+
+    Debug.LogError($"Could not set language. Identifier '{langIdentifier}' is not a valid locale or readable name.");
   }
 
-  private static string GetLocale()
+  public override bool ContainsCurrentLanguage(string locales)
   {
-    var locale = PlayerPrefs.GetString(_PlayerPrefsLocaleKey);
-    // Migrate old locale identifier for UK English
-    if (locale == "EN")
-    {
-      locale = "EN_GB";
-      PlayerPrefs.SetString(_PlayerPrefsLocaleKey, locale);
-      PlayerPrefs.Save();
-    }
-    return locale;
-  }
-
-  public static Language CurrentLanguage => LocaleAsLanguage(GetLocale());
-
-  public static string CurrentLanguageReadable => LanguageAsReadable(CurrentLanguage);
-
-  public static Language ReadableAsLanguage(string lang)
-  {
-    foreach (var l in Enum.GetValues(typeof(Language)))
-    {
-      if (LanguageAsReadable((Language)l) == lang)
-      {
-        return (Language)l;
-      }
-    }
-    return Language.NULL;
-  }
-
-  public static Language LocaleAsLanguage(string locale)
-  {
-    if (Enum.TryParse<Language>(locale.ToUpper(), out var lang))
-    {
-      return lang;
-    }
-    return Language.NULL;
-  }
-
-  public static string LocaleAsReadable(string locale) => LanguageAsReadable(LocaleAsLanguage(locale));
-
-  public static List<string> SupportedLanguagesReadable
-  {
-    get
-    {
-      var languages = new List<string>();
-      foreach (Language lang in _SupportedLanguages)
-      {
-        languages.Add(LanguageAsReadable(lang));
-      }
-      Debug.Log($"LocalizationManager::AvailableLanguages: " + string.Join(", ", languages));
-      return languages;
-    }
-  }
-
-  public static bool ValidateLocalesString(string locales)
-  {
-    locales = locales.ToLower();
-    int count = 0;
-    // bool hasExclusion = locales.Contains("!");
-    foreach (var locale in AllLanguageLocales)
-    {
-      if (locales.Contains(locale.ToLower()))
-      {
-        count++;
-      }
-      // if (hasExclusion && count > 1)
-      // {
-      //   Debug.LogError($"LocalizationManager::ValidateLocalesString: Invalid locales string: {locales}, exclusion supports a single locale");
-      //   return false;
-      // }
-    }
-
-    return true;
-  }
-
-  public static bool ContainsCurrentLanguage(string locales)
-  {
-    _ = ValidateLocalesString(locales);
-    string currentLocale = GetLocale().ToLower();
+    string currentLocale = LoadLocale().ToLower();
     if (locales.Contains("!"))
     {
       return !locales.Contains("!" + currentLocale);
     }
     return locales.Contains(currentLocale);
   }
+
+  // --- Internal Logic ---
+  private string GetLocale(TEnum language) => language.ToString();
+
+  private void SetLanguageByLocale(string locale)
+  {
+    // Fallback to default language if the provided locale is not supported.
+    if (string.IsNullOrEmpty(locale) || !_activeLanguageDefinitions.ContainsKey(locale))
+    {
+      Debug.LogWarning($"Locale '{locale}' is not supported. Falling back to default language '{defaultLanguage}'.");
+      locale = GetLocale(defaultLanguage);
+
+      // Edge case: if even the default language is not in the supported list, we can't proceed.
+      if (!_activeLanguageDefinitions.ContainsKey(locale))
+      {
+        Debug.LogError($"The default language '{locale}' is not in the supported list. Cannot set a language.");
+        return;
+      }
+    }
+
+    SaveLocale(locale);
+    RaiseOnLanguageChanged(LocaleAsLanguage(locale));
+  }
+  #endregion
 }
+
+// Define your languages and decorate them with their details.
+public enum ExampleLanguage
+{
+  [Description("English (UK)")]
+  EN_GB,   // English (United Kingdom)
+  [Description("Español")]
+  ES,      // Spanish
+  [Description("Deutsch")]
+  DE,      // German
+}
+
+public class ExampleLocaleManager : MonoSingleton<LocalizationManagerBase<ExampleLanguage>> { }
