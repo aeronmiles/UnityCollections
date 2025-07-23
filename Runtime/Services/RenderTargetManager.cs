@@ -40,13 +40,13 @@ public class RenderTargetManager : MonoSingletonScene<RenderTargetManager>
 #endif
 
   // @TODO: Implement error handling  
-  public bool Render(string id, out RenderTexture rtOut)
+  public bool Render(string id, out RenderTexture rtOut, bool forceReRender = false)
   {
     foreach (var r in _renderTargets)
     {
       if (r.id == id)
       {
-        return r.Render(out rtOut);
+        return r.Render(out rtOut, forceReRender);
       }
     }
     rtOut = null;
@@ -89,7 +89,8 @@ public class RenderTargetManager : MonoSingletonScene<RenderTargetManager>
     public GameObjectActiveState[] activeStates;
     public Camera camera;
     public Material blitMaterial;
-    public MaterialFloatSetting[] materialSetting;
+    public MaterialFloatSetting[] materialSetting = new MaterialFloatSetting[0];
+    public MaterialKeywordSetting[] materialKeywords = new MaterialKeywordSetting[0];
 
     [Header("Texture Settings")]
     public RenderTexture renderTexture;
@@ -101,22 +102,43 @@ public class RenderTargetManager : MonoSingletonScene<RenderTargetManager>
     public bool RenderToTarget;
     public bool LogRendered = false;
 
-    private List<float> _lastValues;
+    private List<float> _lastMaterialSettingsValues = new();
+    private List<bool> _lastMaterialKeywordValues = new();
     protected virtual void PreRender()
     {
       activeStates.SetStates();
       if (materialSetting != null)
       {
-        if (_lastValues == null)
+        if (_lastMaterialSettingsValues == null)
         {
-          _lastValues = new List<float>();
+          _lastMaterialSettingsValues = new();
         }
-
-        _lastValues.Clear();
+        _lastMaterialSettingsValues.Clear();
         foreach (var setting in materialSetting)
         {
-          _lastValues.Add(blitMaterial.GetFloat(setting.name));
+          _lastMaterialSettingsValues.Add(blitMaterial.GetFloat(setting.name));
           blitMaterial.SetFloat(setting.name, setting.value);
+        }
+      }
+
+      if (materialKeywords != null)
+      {
+        if (_lastMaterialKeywordValues == null)
+        {
+          _lastMaterialKeywordValues = new();
+        }
+        _lastMaterialKeywordValues.Clear();
+        foreach (var keyword in materialKeywords)
+        {
+          _lastMaterialKeywordValues.Add(blitMaterial.IsKeywordEnabled(keyword.name));
+          if (keyword.enabled)
+          {
+            blitMaterial.EnableKeyword(keyword.name);
+          }
+          else
+          {
+            blitMaterial.DisableKeyword(keyword.name);
+          }
         }
       }
     }
@@ -128,10 +150,27 @@ public class RenderTargetManager : MonoSingletonScene<RenderTargetManager>
       {
         for (int i = 0; i < materialSetting.Length; i++)
         {
-          blitMaterial.SetFloat(materialSetting[i].name, _lastValues[i]);
+          blitMaterial.SetFloat(materialSetting[i].name, _lastMaterialSettingsValues[i]);
         }
-        _lastValues.Clear();
+        _lastMaterialSettingsValues.Clear();
       }
+
+      if (materialKeywords != null)
+      {
+        for (int i = 0; i < materialKeywords.Length; i++)
+        {
+          if (_lastMaterialKeywordValues[i])
+          {
+            blitMaterial.EnableKeyword(materialKeywords[i].name);
+          }
+          else
+          {
+            blitMaterial.DisableKeyword(materialKeywords[i].name);
+          }
+        }
+        _lastMaterialKeywordValues.Clear();
+      }
+
     }
 
     protected abstract bool RenderToTexture(out RenderTexture rtOut);
@@ -156,9 +195,9 @@ public class RenderTargetManager : MonoSingletonScene<RenderTargetManager>
 
     private int _lastFrame = -1;
 
-    public bool Render(out RenderTexture rtOut)
+    public bool Render(out RenderTexture rtOut, bool forceReRender = false)
     {
-      if (_lastFrame == Time.frameCount)
+      if (!forceReRender && _lastFrame == Time.frameCount)
       {
         rtOut = renderTexture;
         return true;
@@ -270,4 +309,11 @@ public struct MaterialFloatSetting
 {
   public string name;
   public float value;
+}
+
+[Serializable]
+public struct MaterialKeywordSetting
+{
+  public string name;
+  public bool enabled;
 }
