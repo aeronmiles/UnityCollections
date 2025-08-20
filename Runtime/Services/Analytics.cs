@@ -87,7 +87,7 @@ public class Analytics : MonoSingleton<Analytics>
     _saveCoroutine = null;
   }
 
-  private string GetFilePath() => $"{Application.persistentDataPath}/analytics-{_sessionUTC}.json";
+  private string GetFilePath() => $"{Application.persistentDataPath}/analytics/analytics-{_sessionUTC}.json";
 }
 
 [Serializable]
