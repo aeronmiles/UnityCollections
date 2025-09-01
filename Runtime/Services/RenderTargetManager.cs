@@ -31,8 +31,8 @@ public class RenderTargetManager : MonoSingletonScene<RenderTargetManager>
       if (rt.RenderToTarget || _renderAll)
       {
         _ = rt.Render(out _);
-        rt.RenderToTarget = false;
         Debug.Log($"RenderTargetManager :: {rt.id} rendered: {rt.RenderToTarget}, {_renderAll}");
+        rt.RenderToTarget = false;
       }
     }
     _renderAll = false;
@@ -190,7 +190,6 @@ public class RenderTargetManager : MonoSingletonScene<RenderTargetManager>
           name = "RenderTargetBase::" + id
         };
       }
-      RenderToTarget = true;
     }
 
     private int _lastFrame = -1;
