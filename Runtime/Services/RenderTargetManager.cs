@@ -280,6 +280,10 @@ public class RenderTargetManager : MonoSingletonScene<RenderTargetManager>
         sourceRenderer.sharedMaterial = blitMaterial;
       }
       var result = camera.BlitCroppedToScreenBounds(ref renderTexture, sourceRenderer, renderWidth, renderHeight, null, padding, linear);
+      // if (!result)
+      // {
+      //   Debug.LogError($"RenderTargetManager :: RenderCropped :: Failed to render cropped for {id}");
+      // }
 
       // camera.BlitCroppedToTarget(ref renderTexture, sourceRenderer, null, padding);
       // _tex = camera.BlitCroppedToScreenBounds(sourceRenderer, null, 256, padding);

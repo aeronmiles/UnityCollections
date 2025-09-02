@@ -335,37 +335,110 @@ public static class CameraExt
   /// </summary>
   /// <param name="camera">The camera relative to which the screen-space bounds are calculated.</param>
   /// <param name="targetRenderer">The renderer of the object whose bounds are to be calculated.</param>
-  /// <param name="padding">Optional padding to expand the bounds. Positive values expand the bounds, while negative values contract them. Default is -1, which applies no padding.</param>
+  /// <param name="padding">Optional padding in pixels. Positive expands, negative contracts. A value of -1 applies no padding.</param>
   /// <returns>The screen-space bounds of the object as seen by the specified camera, optionally padded.</returns>
   public static Bounds ScreenSpaceBounds(this Camera camera, Renderer targetRenderer, int padding = -1)
   {
-    NativeArray<Vector3> corners = targetRenderer.bounds.CornerPositions();
-
-    Vector3 min = new Vector3(float.MaxValue, float.MaxValue, float.MaxValue);
-    Vector3 max = new Vector3(float.MinValue, float.MinValue, float.MinValue);
-
-    for (int i = 0; i < 8; i++)
+    // Validate inputs early to avoid exceptions. Destroyed Unity objects compare equal to null.
+    if (!camera)
     {
-      Vector3 screenPos = camera.WorldToScreenPoint(corners[i]);
-      min.x = Mathf.Min(min.x, screenPos.x);
-      min.y = Mathf.Min(min.y, screenPos.y);
-      max.x = Mathf.Max(max.x, screenPos.x);
-      max.y = Mathf.Max(max.y, screenPos.y);
+      Debug.LogError("ScreenSpaceBounds: Camera is null or destroyed.");
+      return new Bounds(Vector3.zero, Vector3.zero);
+    }
+    if (!targetRenderer)
+    {
+      Debug.LogError("ScreenSpaceBounds: Target renderer is null or destroyed.");
+      return new Bounds(Vector3.zero, Vector3.zero);
     }
 
-    if (padding > 0)
+    NativeArray<Vector3> corners = default;
+    try
     {
-      padding /= 2;
-      min.x -= padding;
-      min.y -= padding;
-      max.x += padding;
-      max.y += padding;
-    }
+      corners = targetRenderer.bounds.CornerPositions();
 
-    Bounds result = new Bounds();
-    result.SetMinMax(min, max);
-    corners.Dispose();
-    return result;
+      // Initialize extrema
+      float minX = float.PositiveInfinity;
+      float minY = float.PositiveInfinity;
+      float minZ = float.PositiveInfinity;
+      float maxX = float.NegativeInfinity;
+      float maxY = float.NegativeInfinity;
+      float maxZ = float.NegativeInfinity;
+      int validCount = 0;
+
+      // Project all 8 corners; accept only points in front of the camera with finite coords
+      for (int i = 0; i < 8; i++)
+      {
+        Vector3 sp = camera.WorldToScreenPoint(corners[i]);
+
+        if (float.IsNaN(sp.x) || float.IsNaN(sp.y) || float.IsNaN(sp.z) ||
+            float.IsInfinity(sp.x) || float.IsInfinity(sp.y) || float.IsInfinity(sp.z))
+          continue;
+        if (sp.z <= 0f)
+          continue; // Behind the camera; skip
+
+        validCount++;
+        if (sp.x < minX) minX = sp.x;
+        if (sp.y < minY) minY = sp.y;
+        if (sp.z < minZ) minZ = sp.z;
+        if (sp.x > maxX) maxX = sp.x;
+        if (sp.y > maxY) maxY = sp.y;
+        if (sp.z > maxZ) maxZ = sp.z;
+      }
+
+      // If no valid projected points, return empty bounds
+      if (validCount == 0)
+      {
+        return new Bounds(Vector3.zero, Vector3.zero);
+      }
+
+      // Clamp to the camera's pixel rect to avoid out-of-range bounds
+      float pw = Mathf.Max(0f, (float)camera.pixelWidth);
+      float ph = Mathf.Max(0f, (float)camera.pixelHeight);
+      minX = Mathf.Clamp(minX, 0f, pw);
+      minY = Mathf.Clamp(minY, 0f, ph);
+      maxX = Mathf.Clamp(maxX, 0f, pw);
+      maxY = Mathf.Clamp(maxY, 0f, ph);
+
+      // Apply padding: -1 => none; >0 expand; <0 contract
+      if (padding != -1 && padding != 0)
+      {
+        float halfPad = Mathf.Abs(padding) * 0.5f;
+        if (padding > 0)
+        {
+          minX -= halfPad;
+          minY -= halfPad;
+          maxX += halfPad;
+          maxY += halfPad;
+        }
+        else // padding < 0 => contract
+        {
+          minX += halfPad;
+          minY += halfPad;
+          maxX -= halfPad;
+          maxY -= halfPad;
+        }
+
+        // Keep bounds within pixel rect after padding
+        minX = Mathf.Clamp(minX, 0f, pw);
+        minY = Mathf.Clamp(minY, 0f, ph);
+        maxX = Mathf.Clamp(maxX, 0f, pw);
+        maxY = Mathf.Clamp(maxY, 0f, ph);
+      }
+
+      // If contracted or clamped to an invalid region, return empty
+      if ((maxX - minX) < 1f || (maxY - minY) < 1f)
+      {
+        return new Bounds(Vector3.zero, Vector3.zero);
+      }
+
+      Bounds result = new Bounds();
+      result.SetMinMax(new Vector3(minX, minY, minZ), new Vector3(maxX, maxY, maxZ));
+      return result;
+    }
+    finally
+    {
+      if (corners.IsCreated) corners.Dispose();
+    }
   }
 
   /// <summary>
