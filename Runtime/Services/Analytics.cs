@@ -69,6 +69,21 @@ public class Analytics : MonoSingleton<Analytics>
     _lastSaveTime = Time.time;
     var json = JsonConvert.SerializeObject(_data, Formatting.Indented);
     var path = GetFilePath();
+    // Ensure directory exists
+    var dir = System.IO.Path.GetDirectoryName(path);
+    if (!System.IO.Directory.Exists(dir))
+    {
+      try
+      {
+        _ = System.IO.Directory.CreateDirectory(dir);
+      }
+      catch (Exception)
+      {
+        OnError?.Invoke($"Failed to create directory for analytics data: {dir}");
+        _saveCoroutine = null;
+        yield break;
+      }
+    }
 
     var saveTask = IOUtil.SaveStringAsync(json, path);
 
