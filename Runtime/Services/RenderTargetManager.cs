@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+ 
 
 // @TODO: Implement as service
 [ExecuteInEditMode]
@@ -86,6 +87,8 @@ public class RenderTargetManager : MonoSingletonScene<RenderTargetManager>
     public bool cropToSourceRenderer;
     public Vector3 sourceRendererScale = Vector3.one;
     public bool linear = true;
+    // Target Unity display index to render from (affects camera.targetDisplay)
+    public int targetDisplay = 0;
     public GameObjectActiveState[] activeStates;
     public Camera camera;
     public Material blitMaterial;
@@ -104,8 +107,30 @@ public class RenderTargetManager : MonoSingletonScene<RenderTargetManager>
 
     private List<float> _lastMaterialSettingsValues = new();
     private List<bool> _lastMaterialKeywordValues = new();
+    private int _lastCameraTargetDisplay = -1;
     protected virtual void PreRender()
     {
+      // Swap camera target display if needed
+      if (camera != null)
+      {
+        _lastCameraTargetDisplay = camera.targetDisplay;
+        // Clamp to valid display range if available
+        if (Display.displays != null && Display.displays.Length > 0)
+        {
+          var td = Mathf.Clamp(targetDisplay, 0, Display.displays.Length - 1);
+          camera.targetDisplay = td;
+        }
+        else
+        {
+          camera.targetDisplay = 0;
+        }
+      }
+
+#if UNITY_EDITOR
+      // In the Editor, also switch the GameView's selected display to match
+      EditorUtil.PushGameViewSelectedDisplay(targetDisplay);
+#endif
+
       activeStates.SetStates();
       if (materialSetting != null)
       {
@@ -145,6 +170,17 @@ public class RenderTargetManager : MonoSingletonScene<RenderTargetManager>
 
     protected virtual void PostRender()
     {
+      // Restore camera target display
+      if (camera != null && _lastCameraTargetDisplay >= 0)
+      {
+        camera.targetDisplay = _lastCameraTargetDisplay;
+      }
+
+#if UNITY_EDITOR
+      // Restore GameView selected display
+      EditorUtil.PopGameViewSelectedDisplay();
+#endif
+
       activeStates.ResetStates();
       if (materialSetting != null)
       {
@@ -227,6 +263,8 @@ public class RenderTargetManager : MonoSingletonScene<RenderTargetManager>
     }
   }
 
+
+
   [Serializable]
   public class RenderTarget : RenderTargetBase
   {
@@ -298,10 +336,22 @@ public class RenderTargetManager : MonoSingletonScene<RenderTargetManager>
     private bool RenderScreen()
     {
       bool result;
-      var mat = sourceRenderer.sharedMaterial;
-      sourceRenderer.sharedMaterial = blitMaterial;
-      result = camera.Blit(ref renderTexture, null, linear);
-      sourceRenderer.sharedMaterial = mat;
+      var tmpRT = RenderTexture.GetTemporary(camera.pixelWidth, camera.pixelHeight);
+      try
+      {
+        result = camera.Blit(ref tmpRT, blitMaterial, linear);
+        Graphics.Blit(tmpRT, renderTexture);
+      }
+      catch (Exception e)
+      {
+        Debug.LogError($"RenderTargetManager :: RenderScreen :: Exception rendering screen for {id} :: {e}");
+        result = false;
+      }
+      finally
+      {
+        RenderTexture.ReleaseTemporary(tmpRT);
+      }
+
       return result;
     }
   }
