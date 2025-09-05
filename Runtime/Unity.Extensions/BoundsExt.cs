@@ -8,9 +8,9 @@ public static class BoundsExt
     return new Rect(objectBounds.min.x, objectBounds.min.y, objectBounds.size.x, objectBounds.size.y);
   }
 
-  public static bool InScreenNonZero(this Bounds bounds)
+  public static bool InScreenNonZero(this Bounds bounds, int targetDisplay)
   {
-    return bounds.ToRect().InScreenNonZero();
+    return bounds.ToRect().InScreenNonZero(targetDisplay);
   }
 
   public static bool InScreenNonZero(this Rect bounds, int targetDisplay)
