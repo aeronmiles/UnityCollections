@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
- 
+
 
 // @TODO: Implement as service
 [ExecuteInEditMode]
@@ -117,8 +117,14 @@ public class RenderTargetManager : MonoSingletonScene<RenderTargetManager>
         // Clamp to valid display range if available
         if (Display.displays != null && Display.displays.Length > 0)
         {
-          var td = Mathf.Clamp(targetDisplay, 0, Display.displays.Length - 1);
-          camera.targetDisplay = td;
+          if (targetDisplay > Display.displays.Length)
+          {
+            Debug.LogError("RenderTargetManager :: target display out of bounds");
+          }
+          else
+          {
+            camera.targetDisplay = targetDisplay;
+          }
         }
         else
         {

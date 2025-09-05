@@ -13,10 +13,10 @@ public static class BoundsExt
     return bounds.ToRect().InScreenNonZero();
   }
 
-  public static bool InScreenNonZero(this Rect bounds)
+  public static bool InScreenNonZero(this Rect bounds, int targetDisplay)
   {
-    var renderWidth = Display.displays[0].renderingWidth;
-    var renderHeight = Display.displays[0].renderingHeight;
+    var renderWidth = Display.displays[targetDisplay].renderingWidth;
+    var renderHeight = Display.displays[targetDisplay].renderingHeight;
     if (bounds.x < 0 ||
         bounds.x + bounds.width > renderWidth||
         bounds.y < 0 ||

@@ -197,7 +197,7 @@ public static class CameraExt
 
     // Calculate screen bounds with padding
     var bounds = camera.ScreenSpaceBounds(targetRenderer, padding).ToRect();
-    if (!bounds.InScreenNonZero())
+    if (!bounds.InScreenNonZero(camera.targetDisplay))
     {
       return false;
     }
