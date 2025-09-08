@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Unity.Collections;
+using Unity.Mathematics;
 using UnityEngine;
 
 public static class CameraExt
@@ -184,7 +185,7 @@ public static class CameraExt
   // }
 
   private static Material _BlitCroppedMaterial;
-  public static bool BlitCroppedToScreenBounds(this Camera camera, ref RenderTexture rtOut, Renderer targetRenderer, int width, int height, Material[] blitMats = null, int padding = 12, bool linear = true)
+  public static bool BlitCroppedToScreenBounds(this Camera camera, ref RenderTexture rtOut, Renderer targetRenderer, int width, int height, bool squareAspectRatio = false, Material[] blitMats = null, int padding = 12, bool linear = true)
   {
     if (camera == null || targetRenderer == null)
     {
@@ -200,6 +201,20 @@ public static class CameraExt
     if (!bounds.InScreenNonZero(camera.targetDisplay))
     {
       return false;
+    }
+    if (squareAspectRatio)
+    {
+      if (bounds.height > bounds.width)
+      {
+        bounds.x -= (int)(bounds.height - bounds.width) >> 1;
+        bounds.width = bounds.height;
+      }
+      else
+      {
+        Debug.LogError("@TODO: this needs validating");
+        bounds.y -= (int)(bounds.width - bounds.height) >> 1;
+        bounds.height = bounds.width;
+      }
     }
 
     // store camera settings

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 
 // @TODO: Implement as service
@@ -39,6 +40,18 @@ public class RenderTargetManager : MonoSingletonScene<RenderTargetManager>
     _renderAll = false;
   }
 #endif
+
+  public bool RenderToRenderTexture(string id, ref RenderTexture rt, bool forceReRender = false)
+  {
+    foreach (var r in _renderTargets)
+    {
+      if (r.id == id)
+      {
+        return r.RenderToRenderTexture(ref rt, forceReRender);
+      }
+    }
+    return false;
+  }
 
   // @TODO: Implement error handling  
   public bool Render(string id, out RenderTexture rtOut, bool forceReRender = false)
@@ -84,14 +97,15 @@ public class RenderTargetManager : MonoSingletonScene<RenderTargetManager>
     public string _id;
     public string id => _id;
     public Renderer sourceRenderer;
+    public Material blitMaterial;
     public bool cropToSourceRenderer;
+    public bool cropToSquareAspectRatio;
     public Vector3 sourceRendererScale = Vector3.one;
     public bool linear = true;
     // Target Unity display index to render from (affects camera.targetDisplay)
     public int targetDisplay = 0;
     public GameObjectActiveState[] activeStates;
     public Camera camera;
-    public Material blitMaterial;
     public MaterialFloatSetting[] materialSetting = new MaterialFloatSetting[0];
     public MaterialKeywordSetting[] materialKeywords = new MaterialKeywordSetting[0];
 
@@ -225,16 +239,34 @@ public class RenderTargetManager : MonoSingletonScene<RenderTargetManager>
       }
       if (renderTexture == null)
       {
-        var renderWidth = Display.displays[0].renderingWidth;
-        var renderHeight = Display.displays[0].renderingHeight;
-        renderTexture = new RenderTexture(renderWidth, renderHeight, 24)
-        {
-          name = "RenderTargetBase::" + id
-        };
+        var renderWidth = camera.pixelWidth;
+        var renderHeight = camera.pixelHeight;
+        renderTexture = new RenderTexture(renderWidth, renderHeight, 24);
       }
     }
 
     private int _lastFrame = -1;
+
+    public bool RenderToRenderTexture(ref RenderTexture rt, bool forceReRender = false)
+    {
+      var cacheRT = renderTexture;
+      bool success;
+      try
+      {
+        renderTexture = rt;
+        success = Render(out rt, forceReRender);
+      }
+      catch (Exception ex)
+      {
+        Debug.LogError("RenderTargetManager :: RenderToRenderTexture() Exception: " + ex.ToString());
+        success = false;
+      }
+      finally
+      {
+        renderTexture = cacheRT;
+      }
+      return success;
+    }
 
     public bool Render(out RenderTexture rtOut, bool forceReRender = false)
     {
@@ -248,11 +280,12 @@ public class RenderTargetManager : MonoSingletonScene<RenderTargetManager>
       var result = RenderToTexture(out rtOut);
       PostRender();
 #if UNITY_EDITOR
-      if (LogRendered)
+      if (result && LogRendered)
       {
         Debug.Log($"RenderTargetBase :: {id} rendered: {result}");
       }
 #endif
+
       _lastFrame = Time.frameCount;
       return result;
     }
@@ -313,8 +346,9 @@ public class RenderTargetManager : MonoSingletonScene<RenderTargetManager>
 
     protected bool RenderCropped()
     {
-      var renderWidth = Display.displays[0].renderingWidth;
-      var renderHeight = Display.displays[0].renderingHeight;
+      var renderWidth = Display.displays[targetDisplay].renderingWidth;
+      var renderHeight = Display.displays[targetDisplay].renderingHeight;
+      // Debug.Log($"RenderTargetManager :: RenderCropped() :: width: {width}, height: {height}");
       Vector3 _scale = sourceRenderer.transform.localScale;
       sourceRenderer.transform.localScale = sourceRenderer.transform.localScale.Multiply(sourceRendererScale);
 
@@ -323,15 +357,11 @@ public class RenderTargetManager : MonoSingletonScene<RenderTargetManager>
       {
         sourceRenderer.sharedMaterial = blitMaterial;
       }
-      var result = camera.BlitCroppedToScreenBounds(ref renderTexture, sourceRenderer, renderWidth, renderHeight, null, padding, linear);
+      var result = camera.BlitCroppedToScreenBounds(ref renderTexture, sourceRenderer, renderWidth, renderHeight, cropToSquareAspectRatio, null, padding, linear);
       // if (!result)
       // {
       //   Debug.LogError($"RenderTargetManager :: RenderCropped :: Failed to render cropped for {id}");
       // }
-
-      // camera.BlitCroppedToTarget(ref renderTexture, sourceRenderer, null, padding);
-      // _tex = camera.BlitCroppedToScreenBounds(sourceRenderer, null, 256, padding);
-      // Graphics.Blit(_tex, renderTexture);
 
       // Cleanup
       sourceRenderer.sharedMaterial = mat;
@@ -342,7 +372,22 @@ public class RenderTargetManager : MonoSingletonScene<RenderTargetManager>
     private bool RenderScreen()
     {
       bool result;
-      var tmpRT = RenderTexture.GetTemporary(camera.pixelWidth, camera.pixelHeight);
+      var width = camera.pixelWidth;
+      var height = camera.pixelHeight;
+      if (camera.transform.eulerAngles.z == 90f || camera.transform.eulerAngles.z == -90f)
+      {
+        width = height;
+        height = camera.pixelWidth;
+      }
+#if UNITY_EDITOR
+      if (Application.isPlaying)
+      {
+        width = (int)(width * UnityEditor.EditorGUIUtility.pixelsPerPoint);
+        height = (int)(height * UnityEditor.EditorGUIUtility.pixelsPerPoint);
+      }
+#endif
+      // Debug.Log($"RenderTargetManager :: RenderScreen() :: width: {width}, height: {height}");
+      var tmpRT = RenderTexture.GetTemporary(width, height);
       try
       {
         result = camera.Blit(ref tmpRT, blitMaterial, linear);
