@@ -374,11 +374,11 @@ public class RenderTargetManager : MonoSingletonScene<RenderTargetManager>
       bool result;
       var width = camera.pixelWidth;
       var height = camera.pixelHeight;
-      if (camera.transform.eulerAngles.z == 90f || camera.transform.eulerAngles.z == -90f)
-      {
-        width = height;
-        height = camera.pixelWidth;
-      }
+      // if (camera.transform.eulerAngles.z == 90f || camera.transform.eulerAngles.z == -90f)
+      // {
+      //   width = height;
+      //   height = camera.pixelWidth;
+      // }
 #if UNITY_EDITOR
       if (Application.isPlaying)
       {
