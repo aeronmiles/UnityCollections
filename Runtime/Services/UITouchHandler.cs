@@ -26,9 +26,14 @@ public class UITouchHandler : MonoSingleton<UITouchHandler>
     }
   }
 
+  public void Start()
+  {
+    Debug.LogWarning("UITouchHandler :: @TODO - migrate to InputSystem package, remove the need for ", this);
+  }
+
   public void SetCoolOffPeriod(float period, UnityEngine.Object caller)
   {
-    ServiceManager.I.logger.Log("UITouchHandler", "Setting CoolOffPeriod: " + period, caller);
+    Debug.Log("UITouchHandler :: Setting CoolOffPeriod: " + period, caller);
     coolOffPeriod = period;
   }
 
@@ -54,7 +59,7 @@ public class UITouchHandler : MonoSingleton<UITouchHandler>
   {
     if (Time.time - _lastSetCoolOffTime < coolOffPeriod)
     {
-      ServiceManager.I.logger.LogWarning("UITouchHandler", $"Resetting cool-off period before cool-off has elapsed", caller);
+      Debug.LogWarning("UITouchHandler :: Resetting cool-off period before cool-off has elapsed", caller);
     }
     _lastSetCoolOffTime = Time.time;
     lastInteractionCoolOffTime = _lastSetCoolOffTime;
