@@ -106,6 +106,24 @@ public static class TextureExt
   }
 
   /// <summary>
+  /// Converts a Texture2D to a Base64-encoded JPG string.
+  /// </summary>
+  /// <param name="texture">The texture to convert.</param>
+  /// <param name="quality">JPG quality (1–100).</param>
+  /// <returns>Base64-encoded JPG string.</returns>
+  public static string TextureToBase64JPG(this Texture2D texture, int quality = 75)
+  {
+    if (texture == null)
+    {
+      Debug.LogError("TextureExt :: TextureToBase64JPG() :: texture is null");
+      return null;
+    }
+
+    byte[] jpgBytes = texture.EncodeToJPG(quality);
+    return Convert.ToBase64String(jpgBytes);
+  }
+
+  /// <summary>
   /// copy sourceTex mip level to mipTexOut, where mip level height/width == mipTexOut height/width
   /// </summary>
   /// <param name="tex"></param>
