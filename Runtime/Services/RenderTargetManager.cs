@@ -1,10 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.UIElements;
 
-
-// @TODO: Implement as service
 [ExecuteInEditMode]
 public class RenderTargetManager : MonoSingletonScene<RenderTargetManager>
 {
@@ -161,8 +158,8 @@ public class RenderTargetManager : MonoSingletonScene<RenderTargetManager>
         _lastMaterialSettingsValues.Clear();
         foreach (var setting in materialSetting)
         {
-          _lastMaterialSettingsValues.Add(blitMaterial.GetFloat(setting.name));
-          blitMaterial.SetFloat(setting.name, setting.value);
+          _lastMaterialSettingsValues.Add(setting.material.GetFloat(setting.name));
+          setting.material.SetFloat(setting.name, setting.value);
         }
       }
 
@@ -175,14 +172,14 @@ public class RenderTargetManager : MonoSingletonScene<RenderTargetManager>
         _lastMaterialKeywordValues.Clear();
         foreach (var keyword in materialKeywords)
         {
-          _lastMaterialKeywordValues.Add(blitMaterial.IsKeywordEnabled(keyword.name));
+          _lastMaterialKeywordValues.Add(keyword.material.IsKeywordEnabled(keyword.name));
           if (keyword.enabled)
           {
-            blitMaterial.EnableKeyword(keyword.name);
+            keyword.material.EnableKeyword(keyword.name);
           }
           else
           {
-            blitMaterial.DisableKeyword(keyword.name);
+            keyword.material.DisableKeyword(keyword.name);
           }
         }
       }
@@ -206,7 +203,7 @@ public class RenderTargetManager : MonoSingletonScene<RenderTargetManager>
       {
         for (int i = 0; i < materialSetting.Length; i++)
         {
-          blitMaterial.SetFloat(materialSetting[i].name, _lastMaterialSettingsValues[i]);
+          materialSetting[i].material.SetFloat(materialSetting[i].name, _lastMaterialSettingsValues[i]);
         }
         _lastMaterialSettingsValues.Clear();
       }
@@ -217,11 +214,11 @@ public class RenderTargetManager : MonoSingletonScene<RenderTargetManager>
         {
           if (_lastMaterialKeywordValues[i])
           {
-            blitMaterial.EnableKeyword(materialKeywords[i].name);
+            materialKeywords[i].material.EnableKeyword(materialKeywords[i].name);
           }
           else
           {
-            blitMaterial.DisableKeyword(materialKeywords[i].name);
+            materialKeywords[i].material.DisableKeyword(materialKeywords[i].name);
           }
         }
         _lastMaterialKeywordValues.Clear();
@@ -242,6 +239,23 @@ public class RenderTargetManager : MonoSingletonScene<RenderTargetManager>
         var renderWidth = camera.pixelWidth;
         var renderHeight = camera.pixelHeight;
         renderTexture = new RenderTexture(renderWidth, renderHeight, 24);
+      }
+      if (blitMaterial != null)
+      {
+        for (int i = 0; i < materialSetting.Length; i++)
+        {
+          if (materialSetting[i].material == null)
+          {
+            materialSetting[i].material = blitMaterial;
+          }
+        }
+        for (int i = 0; i < materialKeywords.Length; i++)
+        {
+          if (materialKeywords[i].material == null)
+          {
+            materialKeywords[i].material = blitMaterial;
+          }
+        }
       }
     }
 
@@ -411,6 +425,7 @@ public class RenderTargetManager : MonoSingletonScene<RenderTargetManager>
 [Serializable]
 public struct MaterialFloatSetting
 {
+  public Material material;
   public string name;
   public float value;
 }
@@ -418,6 +433,7 @@ public struct MaterialFloatSetting
 [Serializable]
 public struct MaterialKeywordSetting
 {
+  public Material material;
   public string name;
   public bool enabled;
 }
