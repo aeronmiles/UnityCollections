@@ -1,4 +1,5 @@
 using UnityEngine;
+#if UNITY_EDITOR
 using UnityEditor;
 
 /// <summary>
@@ -23,3 +24,4 @@ public class ReadOnlyAttributeDrawer : PropertyDrawer
     GUI.enabled = previousGUIState;
   }
 }
+#endif
