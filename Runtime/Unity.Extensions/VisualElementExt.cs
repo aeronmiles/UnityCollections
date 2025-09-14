@@ -4,6 +4,22 @@ using System.Linq;
 
 public static class VisualElementExt
 {
+  public static bool HasParentOfType<T>(this VisualElement element) where T : VisualElement
+  {
+    if (element.parent == null)
+    {
+      return false;
+    }
+    else if (element.parent is T)
+    {
+      return true;
+    }
+    else
+    {
+      return element.parent.HasParentOfType<T>();
+    }
+  }
+
   public static T FindByName<T>(this VisualElement root, UnityEngine.Object caller, string name = null) where T : VisualElement
   {
     if (root == null)
