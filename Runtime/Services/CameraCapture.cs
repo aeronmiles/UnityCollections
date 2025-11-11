@@ -316,6 +316,30 @@ namespace NativeCameraCapture
       }
     }
 
+    public enum CameraPosition
+    {
+      Back = 0,
+      Front = 1
+    }
+
+    public void SetCameraPosition(CameraPosition position)
+    {
+      if (_isApplicationQuitting)
+      {
+        return;
+      }
+
+      try
+      {
+        cameraService?.SetCameraPosition((int)position);
+      }
+      catch (Exception e)
+      {
+        Debug.LogError($"CameraCapture :: Error setting camera position: {e.Message}");
+        CleanupResources(force: true);
+      }
+    }
+
     public enum FlashMode
     {
       Off = 0,
@@ -920,6 +944,7 @@ namespace NativeCameraCapture
       void ResumePreview();
       void TakePhoto();
       void SwitchCamera();
+      void SetCameraPosition(int position);
       void SetFlashMode(int mode);
       void SetColorTemperature(float temperature);
       void SetWhiteBalanceMode(int mode);
@@ -940,6 +965,7 @@ namespace NativeCameraCapture
       public void StartPreview() => throw new NotImplementedException();
       public void StopCamera() => throw new NotImplementedException();
       public void SwitchCamera() => throw new NotImplementedException();
+      public void SetCameraPosition(int position) => throw new NotImplementedException();
       public void TakePhoto() => throw new NotImplementedException();
       // public void FreePhotoData(IntPtr pointer) => throw new NotImplementedException();
       public void MarkPreviewBufferAsRead(IntPtr pointer) => throw new NotImplementedException();
@@ -965,6 +991,8 @@ namespace NativeCameraCapture
       // private static extern void _FreePhotoData(IntPtr pointer);
       [DllImport("__Internal")]
       private static extern void _SwitchCamera();
+      [DllImport("__Internal")]
+      private static extern void _SetCameraPosition(int position);
       [DllImport("__Internal")]
       private static extern void _SetFlashMode(int mode);
       [DllImport("__Internal")]
@@ -997,6 +1025,7 @@ namespace NativeCameraCapture
       public void ResumePreview() => _ResumePreview();
       public void TakePhoto() => _TakePhoto();
       public void SwitchCamera() => _SwitchCamera();
+      public void SetCameraPosition(int position) => _SetCameraPosition(position);
       public void SetFlashMode(int mode) => _SetFlashMode(mode);
       public void SetWhiteBalanceMode(int mode) => _SetWhiteBalanceMode(mode);
       public void SetColorTemperature(float temperature) => _SetColorTemperature(temperature);
