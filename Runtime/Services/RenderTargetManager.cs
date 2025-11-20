@@ -10,6 +10,18 @@ public class RenderTargetManager : MonoSingletonScene<RenderTargetManager>
 
   [Header("Render Targets")]
   [SerializeField] private RenderTarget[] _renderTargets;
+
+  public RenderTarget GetRenderTarget(string targetName)
+  {
+    foreach (var target in _renderTargets)
+    {
+      if (target.id == targetName)
+      {
+        return target;
+      }
+    }
+    return null;
+  }
   private void OnValidate() => Validate();
 
   private void Start() => Validate();

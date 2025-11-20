@@ -903,7 +903,7 @@ namespace NativeCameraCapture
     UIImage.Orientation imageOrientation, string mode)
     {
 #if DEBUG
-      Debug.Log($"[CameraCapture] mode:{mode} CalculateRotationAndScale(imageOrientation={imageOrientation})");
+      // Debug.Log($"[CameraCapture] mode:{mode} CalculateRotationAndScale(imageOrientation={imageOrientation})");
 #endif
       if (imageOrientation == UIImage.Orientation.Right || imageOrientation == UIImage.Orientation.Left || imageOrientation == UIImage.Orientation.Up || imageOrientation == UIImage.Orientation.Down)
       // Right
