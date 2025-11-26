@@ -115,6 +115,7 @@ public class RenderTargetManager : MonoSingletonScene<RenderTargetManager>
     public int targetDisplay = 0;
     public GameObjectActiveState[] activeStates;
     public Camera camera;
+    public GlobalMaterialFloatSetting[] globalMaterialSetting = new GlobalMaterialFloatSetting[0];
     public MaterialFloatSetting[] materialSetting = new MaterialFloatSetting[0];
     public MaterialKeywordSetting[] materialKeywords = new MaterialKeywordSetting[0];
 
@@ -128,6 +129,7 @@ public class RenderTargetManager : MonoSingletonScene<RenderTargetManager>
     public bool RenderToTarget;
     public bool LogRendered = false;
 
+    private List<float> _lastGlobalMaterialSettingsValues = new();
     private List<float> _lastMaterialSettingsValues = new();
     private List<bool> _lastMaterialKeywordValues = new();
     private int _lastCameraTargetDisplay = -1;
@@ -161,6 +163,20 @@ public class RenderTargetManager : MonoSingletonScene<RenderTargetManager>
 #endif
 
       activeStates.SetStates();
+      if (globalMaterialSetting != null)
+      {
+        if (_lastGlobalMaterialSettingsValues == null)
+        {
+          _lastGlobalMaterialSettingsValues = new();
+        }
+        _lastGlobalMaterialSettingsValues.Clear();
+        foreach (var setting in globalMaterialSetting)
+        {
+          _lastGlobalMaterialSettingsValues.Add(Shader.GetGlobalFloat(setting.name));
+          Shader.SetGlobalFloat(setting.name, setting.value);
+        }
+      }
+
       if (materialSetting != null)
       {
         if (_lastMaterialSettingsValues == null)
@@ -211,6 +227,15 @@ public class RenderTargetManager : MonoSingletonScene<RenderTargetManager>
 #endif
 
       activeStates.ResetStates();
+      if (globalMaterialSetting != null)
+      {
+        for (int i = 0; i < globalMaterialSetting.Length; i++)
+        {
+          Shader.SetGlobalFloat(globalMaterialSetting[i].name, _lastGlobalMaterialSettingsValues[i]);
+        }
+        _lastGlobalMaterialSettingsValues.Clear();
+      }
+
       if (materialSetting != null)
       {
         for (int i = 0; i < materialSetting.Length; i++)
@@ -432,6 +457,13 @@ public class RenderTargetManager : MonoSingletonScene<RenderTargetManager>
       return result;
     }
   }
+}
+
+[Serializable]
+public struct GlobalMaterialFloatSetting
+{
+  public string name;
+  public float value;
 }
 
 [Serializable]
