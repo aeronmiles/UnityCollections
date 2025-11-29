@@ -969,7 +969,7 @@ class CameraCapture: NSObject, AVCapturePhotoCaptureDelegate,
     from connection: AVCaptureConnection
   ) {
     // Handle dropped frames if needed
-    print("CameraCapture.swift :: Dropped frame")
+    // print("CameraCapture.swift :: Dropped frame")
   }
 
   // MARK: - Buffer Management
