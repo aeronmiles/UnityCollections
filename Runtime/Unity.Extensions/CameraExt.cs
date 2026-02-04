@@ -211,7 +211,6 @@ public static class CameraExt
       }
       else
       {
-        Debug.LogError("@TODO: this needs validating");
         bounds.y -= (int)(bounds.width - bounds.height) >> 1;
         bounds.height = bounds.width;
       }
