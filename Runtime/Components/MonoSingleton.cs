@@ -5,6 +5,7 @@ public class MonoSingleton<T> : MonoBehaviour where T : Component
   private static T _Instance;
   private static readonly object _Lock = new object();
   private static bool _applicationIsQuitting = false;
+  private static bool _isDestroyed = false;
 
   public static T I
   {
@@ -14,21 +15,17 @@ public class MonoSingleton<T> : MonoBehaviour where T : Component
       {
         if (_Instance == null)
         {
-          if (_applicationIsQuitting)
+          if (_applicationIsQuitting || _isDestroyed)
           {
-            // Return the existing instance if any, but do not create a new one
-            return _Instance;
+            return null;
           }
           _Instance = FindObjectOfType<T>(true);
-          if (_Instance == null)
+          if (_Instance == null && Application.isPlaying)
           {
             GameObject singletonObject = new GameObject();
             _Instance = singletonObject.AddComponent<T>();
             singletonObject.name = typeof(T).ToString() + " (Singleton)";
-            if (Application.isPlaying)
-            {
-              DontDestroyOnLoad(singletonObject);
-            }
+            DontDestroyOnLoad(singletonObject);
           }
         }
         return _Instance;
@@ -43,6 +40,7 @@ public class MonoSingleton<T> : MonoBehaviour where T : Component
       if (_Instance == null)
       {
         _Instance = this as T;
+        _isDestroyed = false;
         if (Application.isPlaying)
         {
           DontDestroyOnLoad(gameObject);
@@ -50,17 +48,18 @@ public class MonoSingleton<T> : MonoBehaviour where T : Component
       }
       else if (_Instance != this)
       {
-        ServiceManager.I.logger.LogWarning("MonoSingleton", $"Instance of {typeof(T)} already exists. Destroying duplicate instance.", this);
-        Destroy(gameObject); // Destroy duplicate instance
+        Debug.LogWarning($"[MonoSingleton] Instance of {typeof(T)} already exists. Destroying duplicate instance.");
+        Destroy(gameObject);
       }
     }
   }
 
   protected virtual void OnDestroy()
   {
-    if (!_applicationIsQuitting && _Instance == this)
+    if (_Instance == this)
     {
       _Instance = null;
+      _isDestroyed = true;
     }
     // ServiceManager.I.logger.Log($"MonoSingleton<{typeof(T)}>", "OnDestroy()", this);
   }
