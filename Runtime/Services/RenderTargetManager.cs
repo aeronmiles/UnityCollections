@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-// @TODO: Implement as service
 [ExecuteInEditMode]
 public class RenderTargetManager : MonoSingletonScene<RenderTargetManager>
 {
@@ -11,6 +10,18 @@ public class RenderTargetManager : MonoSingletonScene<RenderTargetManager>
 
   [Header("Render Targets")]
   [SerializeField] private RenderTarget[] _renderTargets;
+
+  public RenderTarget GetRenderTarget(string targetName)
+  {
+    foreach (var target in _renderTargets)
+    {
+      if (target.id == targetName)
+      {
+        return target;
+      }
+    }
+    return null;
+  }
   private void OnValidate() => Validate();
 
   private void Start() => Validate();
@@ -31,22 +42,34 @@ public class RenderTargetManager : MonoSingletonScene<RenderTargetManager>
       if (rt.RenderToTarget || _renderAll)
       {
         _ = rt.Render(out _);
-        rt.RenderToTarget = false;
         Debug.Log($"RenderTargetManager :: {rt.id} rendered: {rt.RenderToTarget}, {_renderAll}");
+        rt.RenderToTarget = false;
       }
     }
     _renderAll = false;
   }
 #endif
 
-  // @TODO: Implement error handling  
-  public bool Render(string id, out RenderTexture rtOut)
+  public bool RenderToRenderTexture(string id, ref RenderTexture rt, bool forceReRender = false)
   {
     foreach (var r in _renderTargets)
     {
       if (r.id == id)
       {
-        return r.Render(out rtOut);
+        return r.RenderToRenderTexture(ref rt, forceReRender);
+      }
+    }
+    return false;
+  }
+
+  // @TODO: Implement error handling  
+  public bool Render(string id, out RenderTexture rtOut, bool forceReRender = false)
+  {
+    foreach (var r in _renderTargets)
+    {
+      if (r.id == id)
+      {
+        return r.Render(out rtOut, forceReRender);
       }
     }
     rtOut = null;
@@ -83,13 +106,18 @@ public class RenderTargetManager : MonoSingletonScene<RenderTargetManager>
     public string _id;
     public string id => _id;
     public Renderer sourceRenderer;
+    public Material blitMaterial;
     public bool cropToSourceRenderer;
+    public bool cropToSquareAspectRatio;
     public Vector3 sourceRendererScale = Vector3.one;
     public bool linear = true;
+    // Target Unity display index to render from (affects camera.targetDisplay)
+    public int targetDisplay = 0;
     public GameObjectActiveState[] activeStates;
     public Camera camera;
-    public Material blitMaterial;
-    public MaterialFloatSetting[] materialSetting;
+    public GlobalMaterialFloatSetting[] globalMaterialSetting = new GlobalMaterialFloatSetting[0];
+    public MaterialFloatSetting[] materialSetting = new MaterialFloatSetting[0];
+    public MaterialKeywordSetting[] materialKeywords = new MaterialKeywordSetting[0];
 
     [Header("Texture Settings")]
     public RenderTexture renderTexture;
@@ -101,37 +129,138 @@ public class RenderTargetManager : MonoSingletonScene<RenderTargetManager>
     public bool RenderToTarget;
     public bool LogRendered = false;
 
-    private List<float> _lastValues;
+    private List<float> _lastGlobalMaterialSettingsValues = new();
+    private List<float> _lastMaterialSettingsValues = new();
+    private List<bool> _lastMaterialKeywordValues = new();
+    private int _lastCameraTargetDisplay = -1;
     protected virtual void PreRender()
     {
+      // Swap camera target display if needed
+      if (camera != null)
+      {
+        _lastCameraTargetDisplay = camera.targetDisplay;
+        // Clamp to valid display range if available
+        if (Display.displays != null && Display.displays.Length > 0)
+        {
+          if (targetDisplay > Display.displays.Length)
+          {
+            Debug.LogError("RenderTargetManager :: target display out of bounds");
+          }
+          else
+          {
+            camera.targetDisplay = targetDisplay;
+          }
+        }
+        else
+        {
+          camera.targetDisplay = 0;
+        }
+      }
+
+#if UNITY_EDITOR
+      // In the Editor, also switch the GameView's selected display to match
+      EditorUtil.PushGameViewSelectedDisplay(targetDisplay);
+#endif
+
       activeStates.SetStates();
+      if (globalMaterialSetting != null)
+      {
+        if (_lastGlobalMaterialSettingsValues == null)
+        {
+          _lastGlobalMaterialSettingsValues = new();
+        }
+        _lastGlobalMaterialSettingsValues.Clear();
+        foreach (var setting in globalMaterialSetting)
+        {
+          _lastGlobalMaterialSettingsValues.Add(Shader.GetGlobalFloat(setting.name));
+          Shader.SetGlobalFloat(setting.name, setting.value);
+        }
+      }
+
       if (materialSetting != null)
       {
-        if (_lastValues == null)
+        if (_lastMaterialSettingsValues == null)
         {
-          _lastValues = new List<float>();
+          _lastMaterialSettingsValues = new();
         }
-
-        _lastValues.Clear();
+        _lastMaterialSettingsValues.Clear();
         foreach (var setting in materialSetting)
         {
-          _lastValues.Add(blitMaterial.GetFloat(setting.name));
-          blitMaterial.SetFloat(setting.name, setting.value);
+          _lastMaterialSettingsValues.Add(setting.material.GetFloat(setting.name));
+          setting.material.SetFloat(setting.name, setting.value);
+        }
+      }
+
+      if (materialKeywords != null)
+      {
+        if (_lastMaterialKeywordValues == null)
+        {
+          _lastMaterialKeywordValues = new();
+        }
+        _lastMaterialKeywordValues.Clear();
+        foreach (var keyword in materialKeywords)
+        {
+          _lastMaterialKeywordValues.Add(keyword.material.IsKeywordEnabled(keyword.name));
+          if (keyword.enabled)
+          {
+            keyword.material.EnableKeyword(keyword.name);
+          }
+          else
+          {
+            keyword.material.DisableKeyword(keyword.name);
+          }
         }
       }
     }
 
     protected virtual void PostRender()
     {
+      // Restore camera target display
+      if (camera != null && _lastCameraTargetDisplay >= 0)
+      {
+        camera.targetDisplay = _lastCameraTargetDisplay;
+      }
+
+#if UNITY_EDITOR
+      // Restore GameView selected display
+      EditorUtil.PopGameViewSelectedDisplay();
+#endif
+
       activeStates.ResetStates();
+      if (globalMaterialSetting != null)
+      {
+        for (int i = 0; i < globalMaterialSetting.Length; i++)
+        {
+          Shader.SetGlobalFloat(globalMaterialSetting[i].name, _lastGlobalMaterialSettingsValues[i]);
+        }
+        _lastGlobalMaterialSettingsValues.Clear();
+      }
+
       if (materialSetting != null)
       {
         for (int i = 0; i < materialSetting.Length; i++)
         {
-          blitMaterial.SetFloat(materialSetting[i].name, _lastValues[i]);
+          materialSetting[i].material.SetFloat(materialSetting[i].name, _lastMaterialSettingsValues[i]);
         }
-        _lastValues.Clear();
+        _lastMaterialSettingsValues.Clear();
       }
+
+      if (materialKeywords != null)
+      {
+        for (int i = 0; i < materialKeywords.Length; i++)
+        {
+          if (_lastMaterialKeywordValues[i])
+          {
+            materialKeywords[i].material.EnableKeyword(materialKeywords[i].name);
+          }
+          else
+          {
+            materialKeywords[i].material.DisableKeyword(materialKeywords[i].name);
+          }
+        }
+        _lastMaterialKeywordValues.Clear();
+      }
+
     }
 
     protected abstract bool RenderToTexture(out RenderTexture rtOut);
@@ -144,21 +273,55 @@ public class RenderTargetManager : MonoSingletonScene<RenderTargetManager>
       }
       if (renderTexture == null)
       {
-        var renderWidth = Display.displays[0].renderingWidth;
-        var renderHeight = Display.displays[0].renderingHeight;
-        renderTexture = new RenderTexture(renderWidth, renderHeight, 24)
-        {
-          name = "RenderTargetBase::" + id
-        };
+        var renderWidth = camera.pixelWidth;
+        var renderHeight = camera.pixelHeight;
+        renderTexture = new RenderTexture(renderWidth, renderHeight, 24);
       }
-      RenderToTarget = true;
+      if (blitMaterial != null)
+      {
+        for (int i = 0; i < materialSetting.Length; i++)
+        {
+          if (materialSetting[i].material == null)
+          {
+            materialSetting[i].material = blitMaterial;
+          }
+        }
+        for (int i = 0; i < materialKeywords.Length; i++)
+        {
+          if (materialKeywords[i].material == null)
+          {
+            materialKeywords[i].material = blitMaterial;
+          }
+        }
+      }
     }
 
     private int _lastFrame = -1;
 
-    public bool Render(out RenderTexture rtOut)
+    public bool RenderToRenderTexture(ref RenderTexture rt, bool forceReRender = false)
     {
-      if (_lastFrame == Time.frameCount)
+      var cacheRT = renderTexture;
+      bool success;
+      try
+      {
+        renderTexture = rt;
+        success = Render(out rt, forceReRender);
+      }
+      catch (Exception ex)
+      {
+        Debug.LogError("RenderTargetManager :: RenderToRenderTexture() Exception: " + ex.ToString());
+        success = false;
+      }
+      finally
+      {
+        renderTexture = cacheRT;
+      }
+      return success;
+    }
+
+    public bool Render(out RenderTexture rtOut, bool forceReRender = false)
+    {
+      if (!forceReRender && _lastFrame == Time.frameCount)
       {
         rtOut = renderTexture;
         return true;
@@ -168,11 +331,12 @@ public class RenderTargetManager : MonoSingletonScene<RenderTargetManager>
       var result = RenderToTexture(out rtOut);
       PostRender();
 #if UNITY_EDITOR
-      if (LogRendered)
+      if (result && LogRendered)
       {
         Debug.Log($"RenderTargetBase :: {id} rendered: {result}");
       }
 #endif
+
       _lastFrame = Time.frameCount;
       return result;
     }
@@ -188,6 +352,8 @@ public class RenderTargetManager : MonoSingletonScene<RenderTargetManager>
       return result;
     }
   }
+
+
 
   [Serializable]
   public class RenderTarget : RenderTargetBase
@@ -231,8 +397,9 @@ public class RenderTargetManager : MonoSingletonScene<RenderTargetManager>
 
     protected bool RenderCropped()
     {
-      var renderWidth = Display.displays[0].renderingWidth;
-      var renderHeight = Display.displays[0].renderingHeight;
+      var renderWidth = Display.displays[targetDisplay].renderingWidth;
+      var renderHeight = Display.displays[targetDisplay].renderingHeight;
+      // Debug.Log($"RenderTargetManager :: RenderCropped() :: width: {width}, height: {height}");
       Vector3 _scale = sourceRenderer.transform.localScale;
       sourceRenderer.transform.localScale = sourceRenderer.transform.localScale.Multiply(sourceRendererScale);
 
@@ -241,11 +408,11 @@ public class RenderTargetManager : MonoSingletonScene<RenderTargetManager>
       {
         sourceRenderer.sharedMaterial = blitMaterial;
       }
-      var result = camera.BlitCroppedToScreenBounds(ref renderTexture, sourceRenderer, renderWidth, renderHeight, null, padding, linear);
-
-      // camera.BlitCroppedToTarget(ref renderTexture, sourceRenderer, null, padding);
-      // _tex = camera.BlitCroppedToScreenBounds(sourceRenderer, null, 256, padding);
-      // Graphics.Blit(_tex, renderTexture);
+      var result = camera.BlitCroppedToScreenBounds(ref renderTexture, sourceRenderer, renderWidth, renderHeight, cropToSquareAspectRatio, null, padding, linear);
+      // if (!result)
+      // {
+      //   Debug.LogError($"RenderTargetManager :: RenderCropped :: Failed to render cropped for {id}");
+      // }
 
       // Cleanup
       sourceRenderer.sharedMaterial = mat;
@@ -256,18 +423,61 @@ public class RenderTargetManager : MonoSingletonScene<RenderTargetManager>
     private bool RenderScreen()
     {
       bool result;
-      var mat = sourceRenderer.sharedMaterial;
-      sourceRenderer.sharedMaterial = blitMaterial;
-      result = camera.Blit(ref renderTexture, null, linear);
-      sourceRenderer.sharedMaterial = mat;
+      var width = camera.pixelWidth;
+      var height = camera.pixelHeight;
+      // if (camera.transform.eulerAngles.z == 90f || camera.transform.eulerAngles.z == -90f)
+      // {
+      //   width = height;
+      //   height = camera.pixelWidth;
+      // }
+#if UNITY_EDITOR
+      if (Application.isPlaying)
+      {
+        width = (int)(width * UnityEditor.EditorGUIUtility.pixelsPerPoint);
+        height = (int)(height * UnityEditor.EditorGUIUtility.pixelsPerPoint);
+      }
+#endif
+      // Debug.Log($"RenderTargetManager :: RenderScreen() :: width: {width}, height: {height}");
+      var tmpRT = RenderTexture.GetTemporary(width, height);
+      try
+      {
+        result = camera.Blit(ref tmpRT, blitMaterial, linear);
+        Graphics.Blit(tmpRT, renderTexture);
+      }
+      catch (Exception e)
+      {
+        Debug.LogError($"RenderTargetManager :: RenderScreen :: Exception rendering screen for {id} :: {e}");
+        result = false;
+      }
+      finally
+      {
+        RenderTexture.ReleaseTemporary(tmpRT);
+      }
+
       return result;
     }
   }
 }
 
 [Serializable]
-public struct MaterialFloatSetting
+public struct GlobalMaterialFloatSetting
 {
   public string name;
   public float value;
+}
+
+[Serializable]
+public struct MaterialFloatSetting
+{
+  public Material material;
+  public string name;
+  public float value;
+}
+
+[Serializable]
+public struct MaterialKeywordSetting
+{
+  public Material material;
+  public string name;
+  public bool enabled;
 }

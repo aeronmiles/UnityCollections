@@ -71,7 +71,7 @@ public static class TextureUtil
         {
           // Create a new Texture2D with the specified format
           Texture2D texture = new Texture2D(downloadedTexture.width, downloadedTexture.height, textureFormat, false);
-          texture.name = "TextureUtil::LoadImage::texture";
+          // texture.name = "TextureUtil::LoadImage::texture";
           // Copy the pixels from the downloaded texture to the new texture
           texture.SetPixels32(downloadedTexture.GetPixels32());
           texture.Apply();

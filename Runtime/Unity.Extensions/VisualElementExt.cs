@@ -4,6 +4,62 @@ using System.Linq;
 
 public static class VisualElementExt
 {
+  public static bool HasParentOfType<T>(this VisualElement element) where T : VisualElement
+  {
+    if (element.parent == null)
+    {
+      return false;
+    }
+    else if (element.parent is T)
+    {
+      return true;
+    }
+    else
+    {
+      return element.parent.HasParentOfType<T>();
+    }
+  }
+
+  public static T FindByName<T>(this VisualElement root, UnityEngine.Object caller, string name = null) where T : VisualElement
+  {
+    if (root == null)
+    {
+      UnityEngine.Debug.LogError("[VisualElementExt] FindElement() :: root is null", caller);
+      return null;
+    }
+    if (!string.IsNullOrEmpty(name))
+    {
+      var el = root.Q<T>(name);
+      if (el == null)
+      {
+        UnityEngine.Debug.LogError("[VisualElementExt] FindElement() element not found with name: " + name, caller);
+      }
+      return el;
+    }
+    UnityEngine.Debug.LogError("[VisualElementExt] FindElement() :: no name reference provided", caller);
+    return null;
+  }
+
+  public static T FindByClassName<T>(this VisualElement root, UnityEngine.Object caller, string className = null) where T : VisualElement
+  {
+    if (root == null)
+    {
+      UnityEngine.Debug.LogError("[VisualElementExt] FindElement() :: root is null", caller);
+      return null;
+    }
+    if (!string.IsNullOrEmpty(className))
+    {
+      var el = root.Q<T>(className: className);
+      if (el == null)
+      {
+        UnityEngine.Debug.LogError("[VisualElementExt] FindElement() element not found with class name: " + className, caller);
+      }
+      return el;
+    }
+    UnityEngine.Debug.LogError("[VisualElementExt] FindElement() :: no class reference provided", caller);
+    return null;
+  }
+
   public static bool HasActiveClass(this VisualElement el) => el.ClassListContains("active");
 
   public static string HierarchyToString(this VisualElement element, int indent = 0)

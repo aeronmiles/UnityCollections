@@ -8,15 +8,15 @@ public static class BoundsExt
     return new Rect(objectBounds.min.x, objectBounds.min.y, objectBounds.size.x, objectBounds.size.y);
   }
 
-  public static bool InScreenNonZero(this Bounds bounds)
+  public static bool InScreenNonZero(this Bounds bounds, int targetDisplay)
   {
-    return bounds.ToRect().InScreenNonZero();
+    return bounds.ToRect().InScreenNonZero(targetDisplay);
   }
 
-  public static bool InScreenNonZero(this Rect bounds)
+  public static bool InScreenNonZero(this Rect bounds, int targetDisplay)
   {
-    var renderWidth = Display.displays[0].renderingWidth;
-    var renderHeight = Display.displays[0].renderingHeight;
+    var renderWidth = Display.displays[targetDisplay].renderingWidth;
+    var renderHeight = Display.displays[targetDisplay].renderingHeight;
     if (bounds.x < 0 ||
         bounds.x + bounds.width > renderWidth||
         bounds.y < 0 ||

@@ -7,12 +7,12 @@ using UnityEngine;
 // @TODO: Implement as service
 public class CoroutineRunner : MonoSingleton<CoroutineRunner>
 {
-  public static void Run(IEnumerator coroutine) => _ = I.StartCoroutine(coroutine);
+  public static Coroutine Run(IEnumerator coroutine) => I.StartCoroutine(coroutine);
 
   public static IEnumerator RunAfter(IEnumerator coroutine, float delay)
   {
     yield return new WaitForSeconds(delay);
-    Run(coroutine);
+    yield return Run(coroutine);
   }
 
   public static void RunAllAsync(IEnumerable<IEnumerator> coroutines)
@@ -23,7 +23,7 @@ public class CoroutineRunner : MonoSingleton<CoroutineRunner>
     }
   }
 
-  public static void Stop(IEnumerator coroutine) => I.StartCoroutine(coroutine);
+  public static void Stop(Coroutine coroutine) => I.StopCoroutine(coroutine);
 
   public static void StopAll(IEnumerable<IEnumerator> coroutines)
   {

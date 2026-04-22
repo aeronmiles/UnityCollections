@@ -1,5 +1,9 @@
 #if UNITY_EDITOR
+using System;
 using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
 using UnityEditor;
 #endif
 using UnityEngine;
@@ -67,4 +71,60 @@ public static class EditorUtil
     }
 #endif
   }
+
+#if UNITY_EDITOR
+  // Editor helpers for selecting the previewed display in Game View.
+  // Uses reflection against internal UnityEditor.GameView fields, which can vary by Unity version.
+  private static readonly BindingFlags _bf = BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public;
+  private static Type EditorGameViewType => Type.GetType("UnityEditor.GameView,UnityEditor");
+  private static readonly Stack<int> _gameViewDisplayStack = new Stack<int>();
+
+  public static void PushGameViewSelectedDisplay(int display)
+  {
+    var t = EditorGameViewType;
+    if (t == null) return;
+    var gv = Resources.FindObjectsOfTypeAll(t).Cast<object>().FirstOrDefault();
+    if (gv == null) return;
+
+    var f = t.GetField("m_TargetDisplay", _bf) ?? t.GetField("m_SelectedDisplay", _bf);
+    if (f == null) return;
+
+    try
+    {
+      var current = (int)f.GetValue(gv);
+      _gameViewDisplayStack.Push(current);
+      var max = Mathf.Max(0, (Display.displays?.Length ?? 1) - 1);
+      var clamped = Mathf.Clamp(display, 0, max);
+      f.SetValue(gv, clamped);
+      var repaint = t.GetMethod("Repaint", _bf);
+      repaint?.Invoke(gv, null);
+    }
+    catch (Exception ex)
+    {
+      Debug.LogError($"Failed to set GameViewSelectedDisplay to: {display}, exception: {ex}");
+    }
+  }
+
+  public static void PopGameViewSelectedDisplay()
+  {
+    if (_gameViewDisplayStack.Count == 0) return;
+    var prev = _gameViewDisplayStack.Pop();
+    var t = EditorGameViewType;
+    if (t == null) return;
+    var gv = Resources.FindObjectsOfTypeAll(t).Cast<object>().FirstOrDefault();
+    if (gv == null) return;
+    var f = t.GetField("m_TargetDisplay", _bf) ?? t.GetField("m_SelectedDisplay", _bf);
+    if (f == null) return;
+    try
+    {
+      f.SetValue(gv, prev);
+      var repaint = t.GetMethod("Repaint", _bf);
+      repaint?.Invoke(gv, null);
+    }
+    catch (Exception ex)
+    {
+      Debug.LogError($"Failed to Pop GameViewSelectedDisplay to: {prev}, exception: {ex}");
+    }
+  }
+#endif
 }

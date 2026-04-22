@@ -4,6 +4,7 @@ using System.Threading;
 using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Buffers;
+using System.Drawing;
 
 namespace NativeCameraCapture
 {
@@ -84,7 +85,7 @@ namespace NativeCameraCapture
       if (isCameraActive && !isPreviewPaused)
       {
         // Simulate preview frame update
-        var (rotation, scale) = CalculateRotationAndScale(_debugImageOrientation);
+        var (rotation, scale) = CalculateRotationAndScale(_debugImageOrientation, "editor preview");
         OnPreviewTextureUpdated?.Invoke(_debugEditorPhoto, rotation, scale);
       }
     }
@@ -270,7 +271,7 @@ namespace NativeCameraCapture
       }
 
 #if UNITY_EDITOR //|| UNITY_IOS
-      var (rotation, scale) = CalculateRotationAndScale(UIImage.Orientation.Up);
+      var (rotation, scale) = CalculateRotationAndScale(UIImage.Orientation.Up, "editor TakePhoto");
       OnPhotoCaptured?.Invoke(_debugEditorPhoto, rotation, scale);
       // @TODO: Fix the following, which would be the actual implementation
       // UpdatePhotoTexture(_debugEditorPhoto.GetRawTextureData(), UIImage.Orientation.Up, false);
@@ -312,6 +313,30 @@ namespace NativeCameraCapture
       catch (Exception e)
       {
         Debug.LogError($"CameraCapture :: Error switching camera: {e.Message}");
+        CleanupResources(force: true);
+      }
+    }
+
+    public enum CameraPosition
+    {
+      Back = 0,
+      Front = 1
+    }
+
+    public void SetCameraPosition(CameraPosition position)
+    {
+      if (_isApplicationQuitting)
+      {
+        return;
+      }
+
+      try
+      {
+        cameraService?.SetCameraPosition((int)position);
+      }
+      catch (Exception e)
+      {
+        Debug.LogError($"CameraCapture :: Error setting camera position: {e.Message}");
         CleanupResources(force: true);
       }
     }
@@ -715,7 +740,7 @@ namespace NativeCameraCapture
 
           Debug.Log($"CameraCapture :: Loaded photo texture - Width: {_photoTexture.width}, Height: {_photoTexture.height}");
 
-          var (rotation, scale) = CalculateRotationAndScale(imageOrientation);
+          var (rotation, scale) = CalculateRotationAndScale(imageOrientation, "photo capture");
           OnPhotoCaptured?.Invoke(_photoTexture, rotation, scale);
         }
         catch (Exception e)
@@ -803,7 +828,7 @@ namespace NativeCameraCapture
           }
         }
 
-        var (rotation, scale) = CalculateRotationAndScale(imageOrientation);
+        var (rotation, scale) = CalculateRotationAndScale(imageOrientation, "preview capture");
         OnPreviewTextureUpdated?.Invoke(_previewTexture, rotation, scale);
         // LogMemoryUsage("After updating preview texture");
       }
@@ -859,20 +884,85 @@ namespace NativeCameraCapture
       }
     }
 
-    // Only supports portrait device orientation, @TODO: add support for other orientations
+    /// <summary>
+    /// @TODO: Validate and test this against ipad front / back cameras
+    /// Calculates the rotation and scale transforms needed to correctly orient a photo texture.
+    ///
+    /// UIImage.Orientation encodes both rotation (Up/Down/Left/Right) and mirroring (Mirrored suffix).
+    /// Each orientation requires specific transform parameters to display correctly in Unity.
+    /// ///
+    /// For iPad portrait mode (device held vertically):
+    /// - Back camera returns .Right → 90° rotation + X-axis mirror for correct display
+    /// - Front camera returns .LeftMirrored → 90° rotation + X-axis mirror for selfie view
+    ///
+    /// Note: Scale(-1, 1, 1) mirrors X-axis only. Scale(-1, -1, 1) would flip both axes (180° rotation).
+    /// </summary>
+    /// <param name="imageOrientation">The UIImage.Orientation from iOS camera capture</param>
+    /// <returns>Tuple of (rotation in degrees, scale vector for X/Y/Z axes)</returns>
     private (float rotation, Vector3 scale) CalculateRotationAndScale(
-    UIImage.Orientation imageOrientation)
+    UIImage.Orientation imageOrientation, string mode)
     {
+#if DEBUG
+      // Debug.Log($"[CameraCapture] mode:{mode} CalculateRotationAndScale(imageOrientation={imageOrientation})");
+#endif
       if (imageOrientation == UIImage.Orientation.Right || imageOrientation == UIImage.Orientation.Left || imageOrientation == UIImage.Orientation.Up || imageOrientation == UIImage.Orientation.Down)
       // Right
       {
+#if UNITY_EDITOR
         return (0f, new Vector3(-1f, 1f, 1f));
+#else
+              // Ipad portrait mode 90f
+              return (90f, new Vector3(-1f, 1f, 1f));
+#endif
       }
       // LeftMirrored, etc ...
       else
       {
+#if UNITY_EDITOR
         return (0f, new Vector3(-1f, -1f, 1f));
+#else
+              // Ipad portrait mode 90f
+              return (90f, new Vector3(-1f, -1f, 1f));
+#endif
       }
+
+      // @TODO: confirm the following logic
+      // #if UNITY_EDITOR
+      //       // Editor mode - simplified transforms for debugging
+      //       return imageOrientation switch
+      //       {
+      //         UIImage.Orientation.Up => (0f, new Vector3(1f, 1f, 1f)),           // No rotation, no mirror
+      //         UIImage.Orientation.Down => (180f, new Vector3(1f, 1f, 1f)),       // 180° rotation
+      //         UIImage.Orientation.Left => (270f, new Vector3(1f, 1f, 1f)),       // 270° rotation (90° CCW)
+      //         UIImage.Orientation.Right => (90f, new Vector3(1f, 1f, 1f)),       // 90° rotation (90° CW)
+      //         UIImage.Orientation.UpMirrored => (0f, new Vector3(-1f, 1f, 1f)),  // Mirror X-axis only
+      //         UIImage.Orientation.DownMirrored => (180f, new Vector3(-1f, 1f, 1f)), // 180° + mirror X
+      //         UIImage.Orientation.LeftMirrored => (270f, new Vector3(-1f, 1f, 1f)), // 270° + mirror X
+      //         UIImage.Orientation.RightMirrored => (90f, new Vector3(-1f, 1f, 1f)), // 90° + mirror X
+      //         _ => (0f, new Vector3(1f, 1f, 1f))  // Fallback: no transform
+      //       };
+      // #else
+      //       // iPad portrait mode - device held vertically, home button at bottom
+      //       // Base rotation is 90° to account for sensor orientation vs device orientation
+      //       return imageOrientation switch
+      //       {
+      //         // Non-mirrored orientations (back camera typical)
+      //         UIImage.Orientation.Up => (90f, new Vector3(1f, 1f, 1f)),
+      //         UIImage.Orientation.Down => (270f, new Vector3(1f, 1f, 1f)),
+      //         UIImage.Orientation.Left => (180f, new Vector3(1f, 1f, 1f)),
+      //         UIImage.Orientation.Right => (90f, new Vector3(-1f, 1f, 1f)),      // Back camera in portrait ✓
+
+      //         // Mirrored orientations (front camera typical)
+      //         // CRITICAL: Only mirror X-axis, NOT both X and Y
+      //         // Mirroring both axes would cause 180° net rotation (upside down image)
+      //         UIImage.Orientation.UpMirrored => (90f, new Vector3(-1f, 1f, 1f)),
+      //         UIImage.Orientation.DownMirrored => (270f, new Vector3(-1f, 1f, 1f)),
+      //         UIImage.Orientation.LeftMirrored => (90f, new Vector3(-1f, 1f, 1f)), // Front camera in portrait ✓ FIXED
+      //         UIImage.Orientation.RightMirrored => (90f, new Vector3(1f, 1f, 1f)),
+
+      //         _ => (90f, new Vector3(-1f, 1f, 1f))  // Fallback: assume Right orientation
+      //       };
+      // #endif
     }
 
     private DeviceOrientation GetDeviceOrientation()
@@ -910,6 +1000,7 @@ namespace NativeCameraCapture
       void ResumePreview();
       void TakePhoto();
       void SwitchCamera();
+      void SetCameraPosition(int position);
       void SetFlashMode(int mode);
       void SetColorTemperature(float temperature);
       void SetWhiteBalanceMode(int mode);
@@ -930,6 +1021,7 @@ namespace NativeCameraCapture
       public void StartPreview() => throw new NotImplementedException();
       public void StopCamera() => throw new NotImplementedException();
       public void SwitchCamera() => throw new NotImplementedException();
+      public void SetCameraPosition(int position) => throw new NotImplementedException();
       public void TakePhoto() => throw new NotImplementedException();
       // public void FreePhotoData(IntPtr pointer) => throw new NotImplementedException();
       public void MarkPreviewBufferAsRead(IntPtr pointer) => throw new NotImplementedException();
@@ -955,6 +1047,8 @@ namespace NativeCameraCapture
       // private static extern void _FreePhotoData(IntPtr pointer);
       [DllImport("__Internal")]
       private static extern void _SwitchCamera();
+      [DllImport("__Internal")]
+      private static extern void _SetCameraPosition(int position);
       [DllImport("__Internal")]
       private static extern void _SetFlashMode(int mode);
       [DllImport("__Internal")]
@@ -987,6 +1081,7 @@ namespace NativeCameraCapture
       public void ResumePreview() => _ResumePreview();
       public void TakePhoto() => _TakePhoto();
       public void SwitchCamera() => _SwitchCamera();
+      public void SetCameraPosition(int position) => _SetCameraPosition(position);
       public void SetFlashMode(int mode) => _SetFlashMode(mode);
       public void SetWhiteBalanceMode(int mode) => _SetWhiteBalanceMode(mode);
       public void SetColorTemperature(float temperature) => _SetColorTemperature(temperature);

@@ -282,6 +282,36 @@ class CameraCapture: NSObject, AVCapturePhotoCaptureDelegate,
     }
   }
 
+  @objc func setCameraPosition(_ position: Int) {
+    sessionQueue.async { [weak self] in
+      guard let self = self else { return }
+
+      let targetPosition: AVCaptureDevice.Position = position == 1 ? .front : .back
+      print("CameraCapture.swift :: Setting camera position to \(targetPosition == .front ? "front" : "back")")
+
+      guard !self.isConfiguring else {
+        print("CameraCapture.swift :: Camera configuration in progress")
+        return
+      }
+
+      // If already on the target position, do nothing
+      if self.currentCameraPosition == targetPosition {
+        print("CameraCapture.swift :: Already on target camera position")
+        return
+      }
+
+      self.isConfiguring = true
+
+      do {
+        try self.performCameraSwitchToPosition(targetPosition)
+      } catch {
+        print("CameraCapture.swift :: Error setting camera position: \(error.localizedDescription)")
+      }
+
+      self.isConfiguring = false
+    }
+  }
+
   @objc func stopCamera() {
     sessionQueue.async { [weak self] in
       guard let self = self else { return }
@@ -603,6 +633,56 @@ class CameraCapture: NSObject, AVCapturePhotoCaptureDelegate,
     captureSession.addInput(newInput)
   }
 
+  private func performCameraSwitchToPosition(_ targetPosition: AVCaptureDevice.Position) throws {
+    guard let captureSession = captureSession else { return }
+
+    captureSession.beginConfiguration()
+
+    // Create a cleanup block that captures weak self
+    let configurationCleanup = { [weak self] in
+      captureSession.commitConfiguration()
+
+      // Notify Unity of camera switch completion
+      DispatchQueue.main.async { [weak self] in
+        guard let self = self else { return }
+        UnityBridge.sendMessage(
+          toGameObject: self.gameObjectName,
+          methodName: "OnCameraSwitched",
+          message: ""
+        )
+      }
+    }
+
+    // Use defer with our cleanup block
+    defer { configurationCleanup() }
+
+    // Remove current input
+    if let currentInput = currentCameraInput {
+      captureSession.removeInput(currentInput)
+    }
+
+    // Set to target position
+    currentCameraPosition = targetPosition
+
+    // Add new input
+    guard
+      let newCamera = AVCaptureDevice.default(
+        .builtInWideAngleCamera,
+        for: .video,
+        position: currentCameraPosition),
+      let newInput = try? AVCaptureDeviceInput(device: newCamera),
+      captureSession.canAddInput(newInput)
+    else {
+      throw NSError(
+        domain: "CameraCapture",
+        code: -1,
+        userInfo: [NSLocalizedDescriptionKey: "Failed to set camera position"])
+    }
+
+    currentCameraInput = newInput
+    captureSession.addInput(newInput)
+  }
+
   private func configureWhiteBalance(device: AVCaptureDevice, temperature: Float) throws {
     try device.lockForConfiguration()
     defer { device.unlockForConfiguration() }
@@ -889,7 +969,7 @@ class CameraCapture: NSObject, AVCapturePhotoCaptureDelegate,
     from connection: AVCaptureConnection
   ) {
     // Handle dropped frames if needed
-    print("CameraCapture.swift :: Dropped frame")
+    // print("CameraCapture.swift :: Dropped frame")
   }
 
   // MARK: - Buffer Management
@@ -1147,6 +1227,11 @@ public func _TakePhoto() {
 @_cdecl("_SwitchCamera")
 public func _SwitchCamera() {
   CameraCapture.shared.switchCamera()
+}
+
+@_cdecl("_SetCameraPosition")
+public func _SetCameraPosition(_ position: Int) {
+  CameraCapture.shared.setCameraPosition(position)
 }
 
 @_cdecl("_SetFlashMode")

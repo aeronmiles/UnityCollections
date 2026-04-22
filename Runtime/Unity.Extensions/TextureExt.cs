@@ -53,7 +53,6 @@ public static class TextureExt
       filterMode = texture.filterMode,
       wrapMode = texture.wrapMode
     };
-    tex.name = "TextureExt::ToTexture2D::tex";
     Graphics.CopyTexture(texture, 0, 0, tex, 0, 0);
     return tex;
   }
@@ -65,7 +64,6 @@ public static class TextureExt
       filterMode = texture.filterMode,
       wrapMode = texture.wrapMode
     };
-    tex.name = "TextureExt::ConvertToHSV::tex";
     var pixels = texture.GetPixels();
     int l = pixels.Length;
     for (int i = 0; i < l; i++)
@@ -105,6 +103,24 @@ public static class TextureExt
       texture = texture.ToTexture2D(texture.format);
     }
     File.WriteAllBytes(path, texture.EncodeToEXR());
+  }
+
+  /// <summary>
+  /// Converts a Texture2D to a Base64-encoded JPG string.
+  /// </summary>
+  /// <param name="texture">The texture to convert.</param>
+  /// <param name="quality">JPG quality (1–100).</param>
+  /// <returns>Base64-encoded JPG string.</returns>
+  public static string TextureToBase64JPG(this Texture2D texture, int quality = 75)
+  {
+    if (texture == null)
+    {
+      Debug.LogError("TextureExt :: TextureToBase64JPG() :: texture is null");
+      return null;
+    }
+
+    byte[] jpgBytes = texture.EncodeToJPG(quality);
+    return Convert.ToBase64String(jpgBytes);
   }
 
   /// <summary>
@@ -349,7 +365,6 @@ public static class TextureExt
     scaleY *= tileY;
 
     var rt = RenderTexture.GetTemporary(texOut.width, texOut.height, 0, RenderTextureFormat.ARGB32);
-    rt.name = "TextureExt::BlitTileRotate::rt";
 
     TileRotateMaterial.SetTexture("_MainTex", sourceTex);
     TileRotateMaterial.SetVector("_TileXY", new Vector4(scaleX, scaleY, 0.0f, 0.0f));
@@ -557,7 +572,6 @@ public static class TextureExt
 
     // Render to texture
     var rt = tex.GetTemporaryRT();
-    rt.name = "TextureExt::TileRotate::rt";
 
     TileRotateMaterial.SetTexture("_MainTex", tex);
     TileRotateMaterial.SetVector("_TileXY", new Vector4(tileX, tileY, 0.0f, 0.0f));
@@ -588,7 +602,6 @@ public static class TextureExt
   public static void BlitToTexCropped(this Texture sourceTex, Texture2D texOut, Material mat = null, bool mipChains = false)
   {
     var rt = sourceTex.GetTemporaryRT();
-    rt.name = "TextureExt::BlitToTexCropped::rt";
 
     var cachedRT = RenderTexture.active;
     RenderTexture.active = rt;
@@ -627,7 +640,6 @@ public static class TextureExt
     // int sourceHeight = sourceTex.height;
 
     var rt = sourceTex.GetTemporaryRT();
-    rt.name = "TextureExt::BlitToTexCentre::rt";
     var cachedRT = RenderTexture.active;
 
     RenderTexture.active = rt;
@@ -652,7 +664,6 @@ public static class TextureExt
     // float offsetY = (texOut.height - (sourceTex.height * minScale)) * 0.5f;
 
     var texRT = texOut.GetTemporaryRT();
-    texRT.name = "TextureExt::BlitToTexCentre::texRT";
     Graphics.Blit(rt, texRT);
 
     RenderTexture.active = texRT;
@@ -711,9 +722,7 @@ public static class TextureExt
 
     // Create a temporary RenderTexture
     RenderTexture tempRT = destination.GetTemporaryRT();
-    tempRT.name = "TextureExt::BlitToTexCentreFitted::tempRT";
     RenderTexture tempRTBlitMat = destination.GetTemporaryRT();
-    tempRTBlitMat.name = "TextureExt::BlitToTexCentreFitted::tempRTBlitMat";
 
     // Set the active RenderTexture
     RenderTexture.active = tempRT;
@@ -797,9 +806,7 @@ public static class TextureExt
   public static void BlitToTex(this Texture sourceTex, Texture2D texOut, Material mat = null, bool mipChains = false)
   {
     var rt = texOut.GetTemporaryRT();
-    rt.name = "TextureExt::BlitToTex::rt";
     var cachedRT = RenderTexture.active;
-
     RenderTexture.active = rt;
     if (mat != null)
     {
@@ -814,7 +821,6 @@ public static class TextureExt
     // Graphics.CopyTexture(rt, 0, 0, texOut, 0, 0);
     texOut.ReadPixels(new Rect(0, 0, texOut.width, texOut.height), 0, 0, false);
     texOut.Apply(mipChains);
-
     // Cleanup
     RenderTexture.active = cachedRT;
     RenderTexture.ReleaseTemporary(rt);
@@ -827,7 +833,6 @@ public static class TextureExt
   /// <param name="texOut"></param>
   public static void BlitToRT(this Texture sourceTex, RenderTexture rtOut, Material mat = null, bool mipChains = false)
   {
-    rtOut.name = "TextureExt::BlitToRT::rtOut";
     var cachedRT = RenderTexture.active;
 
     RenderTexture.active = rtOut;
