@@ -473,6 +473,7 @@ namespace NativeCameraCapture
 
       // LogMemoryUsage("Before processing photo");
       IntPtr baseAddress = IntPtr.Zero;
+      int bufferIndex = -1;
       byte[] photoBytes = null;
 
       try
@@ -483,13 +484,14 @@ namespace NativeCameraCapture
           throw new ArgumentException("Received null or empty pointer data");
         }
 
-        var (ptr, width, height, dataLength, imageOrientation) = ParsePhotoData(pointerData);
+        var (ptr, width, height, dataLength, imageOrientation, idx) = ParsePhotoData(pointerData);
         baseAddress = ptr;
+        bufferIndex = idx;
 
         // Step 2: Validate photo parameters
         if (!ValidatePhotoParameters(baseAddress, width, height, dataLength))
         {
-          MarkBufferAsRead(baseAddress, BufferType.Photo);
+          MarkBufferAsRead(bufferIndex, BufferType.Photo);
           throw new ArgumentException("Invalid photo parameters");
         }
 
@@ -502,14 +504,14 @@ namespace NativeCameraCapture
         }
         catch (Exception e)
         {
-          MarkBufferAsRead(baseAddress, BufferType.Photo);
+          MarkBufferAsRead(bufferIndex, BufferType.Photo);
           throw new InvalidOperationException($"Failed to copy photo data: {e.Message}", e);
         }
 
         // Step 4: Immediately mark buffer as read after successful copy
         try
         {
-          MarkBufferAsRead(baseAddress, BufferType.Photo);
+          MarkBufferAsRead(bufferIndex, BufferType.Photo);
         }
         catch (Exception e)
         {
@@ -557,7 +559,7 @@ namespace NativeCameraCapture
         Debug.LogError($"CameraCapture :: Error processing photo data: {e.Message}\nStack Trace: {e.StackTrace}");
 
         // Cleanup native memory if not already done
-        MarkBufferAsRead(baseAddress, BufferType.Photo);
+        MarkBufferAsRead(bufferIndex, BufferType.Photo);
 
         // Reset capturing flag
         _ = Interlocked.Exchange(ref _isCapturing, 0);
@@ -569,7 +571,7 @@ namespace NativeCameraCapture
       }
       finally
       {
-        MarkBufferAsRead(baseAddress, BufferType.Photo);
+        MarkBufferAsRead(bufferIndex, BufferType.Photo);
       }
     }
 
@@ -579,9 +581,9 @@ namespace NativeCameraCapture
       Photo = 1
     }
 
-    private void MarkBufferAsRead(IntPtr baseAddress, BufferType type)
+    private void MarkBufferAsRead(int bufferIndex, BufferType type)
     {
-      if (baseAddress == IntPtr.Zero)
+      if (bufferIndex < 0)
       {
         return;
       }
@@ -589,18 +591,16 @@ namespace NativeCameraCapture
       {
         if (type == BufferType.Preview)
         {
-          cameraService.MarkPreviewBufferAsRead(baseAddress);
+          cameraService.MarkPreviewBufferAsReadByIndex(bufferIndex);
         }
         else if (type == BufferType.Photo)
         {
-          cameraService.MarkPhotoBufferAsRead(baseAddress);
+          cameraService.MarkPhotoBufferAsReadByIndex(bufferIndex);
         }
-        baseAddress = IntPtr.Zero;
       }
       catch (Exception freeError)
       {
-        baseAddress = IntPtr.Zero;
-        Debug.LogError($"CameraCapture :: Error freeing {type} buffer addr : 0x{baseAddress.ToString("X")}, photo data after error: {freeError.Message}");
+        Debug.LogError($"CameraCapture :: Error marking {type} buffer slot {bufferIndex} as read: {freeError.Message}");
       }
     }
 
@@ -618,22 +618,23 @@ namespace NativeCameraCapture
       // Skip during photo capture to prevent race conditions
       if (Interlocked.CompareExchange(ref _isCapturing, 1, 1) == 1)
       {
-        var (ptr, width, height, dataLength, imageOrientation) = ParsePhotoData(pointerData);
-        MarkBufferAsRead(ptr, BufferType.Preview);
+        var (ptr, width, height, dataLength, imageOrientation, idx) = ParsePhotoData(pointerData);
+        MarkBufferAsRead(idx, BufferType.Preview);
         return;
       }
 
       // LogMemoryUsage("Before processing preview frame");
-      IntPtr baseAddress = IntPtr.Zero;
+      int bufferIndex = -1;
       try
       {
-        var (ptr, width, height, dataLength, imageOrientation) = ParsePhotoData(pointerData);
-        baseAddress = ptr;
+        var (ptr, width, height, dataLength, imageOrientation, idx) = ParsePhotoData(pointerData);
+        IntPtr baseAddress = ptr;
+        bufferIndex = idx;
 
         // Validate frame parameters
         if (!ValidatePhotoParameters(baseAddress, width, height, dataLength))
         {
-          MarkBufferAsRead(baseAddress, BufferType.Preview);
+          MarkBufferAsRead(bufferIndex, BufferType.Preview);
           Debug.LogError("CameraCapture :: OnPreviewFrameReceived :: Invalid frame parameters");
           return;
         }
@@ -646,7 +647,7 @@ namespace NativeCameraCapture
         // byte[] frameData = new byte[dataLength];
         Marshal.Copy(baseAddress, frameData, 0, dataLength);
         // Immediately mark buffer as read
-        MarkBufferAsRead(baseAddress, BufferType.Preview);
+        MarkBufferAsRead(bufferIndex, BufferType.Preview);
 
         if (!_isApplicationQuitting)
         {
@@ -673,7 +674,7 @@ namespace NativeCameraCapture
       catch (Exception e)
       {
         Debug.LogError($"CameraCapture :: Error processing preview frame: {e.Message}\nStack Trace: {e.StackTrace}");
-        MarkBufferAsRead(baseAddress, BufferType.Preview);
+        MarkBufferAsRead(bufferIndex, BufferType.Preview);
       }
     }
 
@@ -740,6 +741,7 @@ namespace NativeCameraCapture
 
           Debug.Log($"CameraCapture :: Loaded photo texture - Width: {_photoTexture.width}, Height: {_photoTexture.height}");
 
+          Debug.Log($"[CameraCapture] photo capture imageOrientation={imageOrientation} deviceOrientation={GetDeviceOrientation()}");
           var (rotation, scale) = CalculateRotationAndScale(imageOrientation, "photo capture");
           OnPhotoCaptured?.Invoke(_photoTexture, rotation, scale);
         }
@@ -860,10 +862,10 @@ namespace NativeCameraCapture
       }
     }
 
-    private (IntPtr baseAddress, int width, int height, int dataLength, UIImage.Orientation imageOrientation) ParsePhotoData(string pointerData)
+    private (IntPtr baseAddress, int width, int height, int dataLength, UIImage.Orientation imageOrientation, int bufferIndex) ParsePhotoData(string pointerData)
     {
       string[] parts = pointerData.Split(',');
-      if (parts.Length != 5)
+      if (parts.Length != 6)
       {
         throw new ArgumentException($"Invalid photo data received. Expected 6 parts, got {parts.Length}");
       }
@@ -875,8 +877,9 @@ namespace NativeCameraCapture
         int height = int.Parse(parts[2], CultureInfo.InvariantCulture);
         int dataLength = int.Parse(parts[3], CultureInfo.InvariantCulture);
         var imageOrientation = (UIImage.Orientation)int.Parse(parts[4], CultureInfo.InvariantCulture);
+        int bufferIndex = int.Parse(parts[5], CultureInfo.InvariantCulture);
 
-        return (baseAddress, width, height, dataLength, imageOrientation);
+        return (baseAddress, width, height, dataLength, imageOrientation, bufferIndex);
       }
       catch (Exception e)
       {
@@ -1006,8 +1009,8 @@ namespace NativeCameraCapture
       void SetWhiteBalanceMode(int mode);
       void StopCamera();
       // void FreePhotoData(IntPtr pointer);
-      void MarkPreviewBufferAsRead(IntPtr pointer);
-      void MarkPhotoBufferAsRead(IntPtr pointer);
+      void MarkPreviewBufferAsReadByIndex(int bufferIndex);
+      void MarkPhotoBufferAsReadByIndex(int bufferIndex);
     }
 
     public class UnityEditorCameraService : ICameraService
@@ -1024,8 +1027,8 @@ namespace NativeCameraCapture
       public void SetCameraPosition(int position) => throw new NotImplementedException();
       public void TakePhoto() => throw new NotImplementedException();
       // public void FreePhotoData(IntPtr pointer) => throw new NotImplementedException();
-      public void MarkPreviewBufferAsRead(IntPtr pointer) => throw new NotImplementedException();
-      public void MarkPhotoBufferAsRead(IntPtr pointer) => throw new NotImplementedException();
+      public void MarkPreviewBufferAsReadByIndex(int bufferIndex) => throw new NotImplementedException();
+      public void MarkPhotoBufferAsReadByIndex(int bufferIndex) => throw new NotImplementedException();
     }
 
 #if UNITY_IOS
@@ -1088,14 +1091,14 @@ namespace NativeCameraCapture
       public void StopCamera() => _StopCamera();
       // public void FreePhotoData(IntPtr pointer) => _FreePhotoData(pointer); [DllImport("__Internal")]
       [DllImport("__Internal")]
-      private static extern void _MarkPreviewBufferAsRead(IntPtr pointer);
+      private static extern void _MarkPreviewBufferAsReadByIndex(int bufferIndex);
 
       [DllImport("__Internal")]
-      private static extern void _MarkPhotoBufferAsRead(IntPtr pointer);
+      private static extern void _MarkPhotoBufferAsReadByIndex(int bufferIndex);
 
-      public void MarkPreviewBufferAsRead(IntPtr pointer) => _MarkPreviewBufferAsRead(pointer);
+      public void MarkPreviewBufferAsReadByIndex(int bufferIndex) => _MarkPreviewBufferAsReadByIndex(bufferIndex);
 
-      public void MarkPhotoBufferAsRead(IntPtr pointer) => _MarkPhotoBufferAsRead(pointer);
+      public void MarkPhotoBufferAsReadByIndex(int bufferIndex) => _MarkPhotoBufferAsReadByIndex(bufferIndex);
     }
 #endif
 

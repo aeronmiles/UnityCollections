@@ -832,9 +832,9 @@ class CameraCapture: NSObject, AVCapturePhotoCaptureDelegate,
     self.updateVideoOrientation()
     let imageOrientation = self.getImageOrientation()
 
-    // Prepare pointer data
+    // Prepare pointer data (last field is the slot index, used for mark-as-read)
     let pointerData =
-      "\(UInt(bitPattern: buffer)),\(width),\(height),\(dataLength),\(imageOrientation.rawValue)"
+      "\(UInt(bitPattern: buffer)),\(width),\(height),\(dataLength),\(imageOrientation.rawValue),\(bufferIndex)"
 
     // Mark the buffer as ready
     photoBufferReady[bufferIndex] = true
@@ -942,9 +942,9 @@ class CameraCapture: NSObject, AVCapturePhotoCaptureDelegate,
     self.updateVideoOrientation()
     let imageOrientation = self.getImageOrientation()
 
-    // Prepare pointer data
+    // Prepare pointer data (last field is the slot index, used for mark-as-read)
     let pointerData =
-      "\(UInt(bitPattern: buffer)),\(width),\(height),\(packedDataLength),\(imageOrientation.rawValue)"
+      "\(UInt(bitPattern: buffer)),\(width),\(height),\(packedDataLength),\(imageOrientation.rawValue),\(bufferIndex)"
 
     // Mark the buffer as ready
     previewBufferReady[bufferIndex] = true
@@ -974,22 +974,17 @@ class CameraCapture: NSObject, AVCapturePhotoCaptureDelegate,
 
   // MARK: - Buffer Management
 
-  @objc func markPreviewBufferAsRead(_ pointer: UnsafeMutableRawPointer) {
-    for i in 0..<previewBuffers.count {
-      if previewBuffers[i]! == pointer {
-        previewBufferReady[i] = false
-        break
-      }
-    }
+  // Mark by slot index. Pointer-based matching is fragile because resizeBuffer
+  // reallocates and the old pointer no longer matches any slot, leaving the
+  // ready flag stuck true and wedging the producer ("Preview buffer is busy").
+  @objc func markPreviewBufferAsReadByIndex(_ index: Int) {
+    guard index >= 0 && index < previewBufferReady.count else { return }
+    previewBufferReady[index] = false
   }
 
-  @objc func markPhotoBufferAsRead(_ pointer: UnsafeMutableRawPointer) {
-    for i in 0..<photoBuffers.count {
-      if photoBuffers[i]! == pointer {
-        photoBufferReady[i] = false
-        break
-      }
-    }
+  @objc func markPhotoBufferAsReadByIndex(_ index: Int) {
+    guard index >= 0 && index < photoBufferReady.count else { return }
+    photoBufferReady[index] = false
   }
 
   // MARK: - Utility Methods
@@ -1254,12 +1249,12 @@ public func _StopCamera() {
   CameraCapture.shared.stopCamera()
 }
 
-@_cdecl("_MarkPreviewBufferAsRead")
-public func _MarkPreviewBufferAsRead(_ pointer: UnsafeMutableRawPointer) {
-  CameraCapture.shared.markPreviewBufferAsRead(pointer)
+@_cdecl("_MarkPreviewBufferAsReadByIndex")
+public func _MarkPreviewBufferAsReadByIndex(_ index: Int32) {
+  CameraCapture.shared.markPreviewBufferAsReadByIndex(Int(index))
 }
 
-@_cdecl("_MarkPhotoBufferAsRead")
-public func _MarkPhotoBufferAsRead(_ pointer: UnsafeMutableRawPointer) {
-  CameraCapture.shared.markPhotoBufferAsRead(pointer)
+@_cdecl("_MarkPhotoBufferAsReadByIndex")
+public func _MarkPhotoBufferAsReadByIndex(_ index: Int32) {
+  CameraCapture.shared.markPhotoBufferAsReadByIndex(Int(index))
 }
