@@ -179,12 +179,30 @@ public class LocalizationManagerBase<TEnum> : ILocalizationManager<TEnum> where 
 
   public override bool ContainsCurrentLanguage(string locales)
   {
+    if (string.IsNullOrEmpty(locales)) return false;
+
     string currentLocale = LoadLocale().ToLower();
+
+    // Exclusion mode: e.g. "!de!aut!it" — each excluded locale is preceded by "!".
+    // Tokenize on "!" so "!fr_ca" doesn't accidentally exclude "fr" via substring match.
     if (locales.Contains("!"))
     {
-      return !locales.Contains("!" + currentLocale);
+      foreach (var token in locales.Split('!', StringSplitOptions.RemoveEmptyEntries))
+      {
+        if (token.Equals(currentLocale, StringComparison.OrdinalIgnoreCase))
+          return false;
+      }
+      return true;
     }
-    return locales.Contains(currentLocale);
+
+    // Inclusion mode: e.g. "fi se dk no" or "fr" — whitespace-separated tokens.
+    // Exact match per token so "fr_ca" doesn't accidentally match "fr".
+    foreach (var token in locales.Split(new[] { ' ', '\t', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries))
+    {
+      if (token.Equals(currentLocale, StringComparison.OrdinalIgnoreCase))
+        return true;
+    }
+    return false;
   }
 
   // --- Internal Logic ---
